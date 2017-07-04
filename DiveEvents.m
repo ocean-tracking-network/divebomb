@@ -79,8 +79,8 @@ wAV = mean(wTS); %mean of TS
 iSub2 = iW(i+1)+(0:LWin);%Indices of the window
 wAV2 = mean(TS(iSub2));%mean of following window
 
-    
-if wSTD < ThSTD 
+
+if wSTD < ThSTD
     if wAV > AvIn %bottom dive
         DiveID(iSub) = ones(LWin+1,1)*4;
         ID(i,1) = mean(iSub);
@@ -109,20 +109,20 @@ for i = 2:nWin
     wTS = TS(iSub);%Magnitude and time series
     wSTD = std(wTS);%Standard deviations
     wAV = mean(wTS); %mean of TS
-    
-    
-    if wSTD < ThSTD 
+
+
+    if wSTD < ThSTD
         if wAV > AvIn %bottom dive
             DiveID(iSub) = ones(LWin+1,1)*4;
             ID(i,1) = mean(iSub);
             ID(i,2) = 4;
-            
+
         elseif wAV < AvIn %surface
             DiveID(iSub) = ones(LWin+1,1)*1;
             ID(i,1) = mean(iSub);
             ID(i,2) = 1;
         end
-        
+
     elseif wSTD > ThSTD %ascent or descent phase
         if ID(i-1,2) == 2 || ID(i-1,2) == 1 %window before was descent or surface
             DiveID(iSub) = ones(LWin+1,1)*2; %descent
@@ -133,19 +133,19 @@ for i = 2:nWin
             ID(i,1) = mean(iSub);
             ID(i,2) = 3; %window ID
         end
-    end    
+    end
     %Display progress
     if rem(i,floor(nWin/10)) == 0
         fprintf('Analyzed %u%% of the time series.\n',round(100*i/nWin))
     end
-    
+
 end
 
-        
+
 %----plot dive events----%
 if DoPlot == 1
     hf(1) = figure;
-    
+
     bottom = ID(ID(:,2) == 4,1);
     surface = ID(ID(:,2) == 1,1);
     ascent = ID(ID(:,2) == 3,1);
@@ -158,7 +158,7 @@ if DoPlot == 1
     plot(time(descent), TS(descent), '+r')
     plot(time(ascent), TS(ascent), '+y')
     plot(time(surface), TS(surface), '+m')
-    
+
     title(sprintf('Dive phases found using ThSTD = %2.2f and AvIn = %2.2f with LWin = %2.2f s for %2.2f',ThSTD, AvIn, win, filename))
 
 end
