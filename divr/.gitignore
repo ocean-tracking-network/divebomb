@@ -1,2 +1,2 @@
-*.nc
-*.ipynb_checkpoints
+./*.nc
+./*.ipynb_checkpoints
