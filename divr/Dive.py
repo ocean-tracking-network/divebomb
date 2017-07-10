@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.offline as py
 import plotly.graph_objs as go
+import copy
 py.init_notebook_mode()
 
 class Dive:
@@ -16,14 +17,15 @@ class Dive:
                 self.data[k] = self.data[v]
                 self.data.drop(v,axis=1)
         self.max_depth = self.data.depth.max()
+        self.dive_start = self.data.time.min()
         self.bottom_start = None
         self.td_bottom_duration = None
         self.td_descent_duration = self.get_descent_duration()
         self.td_ascent_duration= self.get_ascent_duration()
         self.td_surface_duration = self.get_surface_duration()
         self.bottom_variance = self.set_bottom_variance()
-        self.descent_velocity = None
-        self.ascent_velocity = None
+        self.descent_velocity = self.get_descent_velocity()
+        self.ascent_velocity = self.get_ascent_velocity()
 
         self.shape = None
 
@@ -66,11 +68,15 @@ class Dive:
         return self.td_surface_duration
 
     # Calculate the ascent velocity
-    def set_descent_velocity(self):
+    def get_descent_velocity(self):
+        descent_data =  self.data[self.data.time <= self.bottom_start]
+        self.descent_velocity = (descent_data.depth.max() - descent_data.depth.min())/self.td_descent_duration
         return self.descent_velocity
 
     # Calculate the ascent velocity
-    def set_ascent_velocity(self):
+    def get_ascent_velocity(self):
+        ascent_data = self.data[self.data.time >= (self.bottom_start+self.td_bottom_duration)]
+        self.ascent_velocity = (ascent_data.depth.max() - ascent_data.depth.min())/self.td_ascent_duration
         return self.ascent_velocity
 
 
@@ -84,11 +90,17 @@ class Dive:
     def set_dive_shape(self, minimum_skew_ratio = 2):
         return self.shape
 
+    def to_dict(self):
+        dive = copy.deepcopy(self.__dict__)
+        del dive['data']
+        return dive
+
     def plot(self):
         descent_data = self.data[self.data.time <= self.bottom_start]
         descent = go.Scatter(
             x = descent_data.time,
             y = descent_data.depth,
+            mode = 'lines+markers',
             name = 'Descent'
         )
 
@@ -96,13 +108,15 @@ class Dive:
         bottom = go.Scatter(
             x = bottom_data.time,
             y = bottom_data.depth,
+            mode = 'lines+markers',
             name='Bottom'
         )
 
-        ascent_data = self.data[self.data.time >= (self.bottom_start+self.td_bottom_duration)]
+        ascent_data = self.data[(self.data.time >= (self.bottom_start+self.td_bottom_duration)) & (self.data.time <= (self.data.time.max()-self.td_surface_duration))]
         ascent = go.Scatter(
             x = ascent_data.time,
             y = ascent_data.depth,
+            mode = 'lines+markers',
             name='Ascent'
         )
 
@@ -111,6 +125,7 @@ class Dive:
         surface = go.Scatter(
             x = surface_data.time,
             y = surface_data.depth,
+            mode = 'lines+markers',
             name='Surface'
         )
 
