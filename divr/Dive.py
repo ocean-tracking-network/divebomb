@@ -4,6 +4,7 @@ import numpy as np
 import plotly.offline as py
 import plotly.graph_objs as go
 import copy
+from DiveShape import DiveShape
 py.init_notebook_mode()
 
 class Dive:
@@ -27,7 +28,7 @@ class Dive:
         self.descent_velocity = self.get_descent_velocity()
         self.ascent_velocity = self.get_ascent_velocity()
 
-        self.shape = None
+        self.shape = self.set_dive_shape()
 
     # Calculate and set the descent duration
     def get_descent_duration(self):
@@ -87,7 +88,20 @@ class Dive:
         return self.bottom_variance
 
     # Calculate and set the descent duration
-    def set_dive_shape(self, minimum_skew_ratio = 2):
+    def set_dive_shape(self, minimum_skew_ratio = 2, v_threshold=0.1):
+        shape = ""
+        total_duration = self.td_descent_duration+self.td_bottom_duration+self.td_ascent_duration
+
+        if self.td_ascent_duration*minimum_skew_ratio > self.td_descent_duration:
+            shape += str(DiveShape.RIGHTSKEW)
+        elif self.td_descent_duration*minimum_skew_ratio > self.td_ascent_duration:
+            shape += str(DiveShape.LEFTSKEW)
+        elif self.td_bottom_duration <= total_duration*v_threshold:
+            shape += str(DiveShape.VSHAPE)
+        else:
+            shape += str(DiveShape.SQUARE)
+
+        self.shape = shape
         return self.shape
 
     def to_dict(self):
