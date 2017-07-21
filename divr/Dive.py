@@ -7,14 +7,14 @@ import copy
 import sys
 from DiveShape import DiveShape
 from netCDF4 import Dataset, num2date
-py.init_notebook_mode()
+
 
 units = 'seconds since 1970-01-01'
 
 
 class Dive:
     # Durations are in seconds and velocity in m/s
-    def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}, surface_threshold=2):
+    def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}, surface_threshold=3.0):
         self.sufficient=True
         self.data = data.sort_values('time').reset_index(drop=True)
         self.surface_threshold = surface_threshold
@@ -47,8 +47,7 @@ class Dive:
                 self.ascent_velocity = None
                 self.shape = DiveShape.SHALLOW
             else:
-                print "Error: There is not enough information for this dive.\n"
-
+                print "Error: There is not enough information for this dive.\n"+str(self.data.time.min() )+ " to "+str(self.data.time.max())
     # Calculate and set the descent duration
     def get_descent_duration(self):
         std_dev = 0
@@ -184,7 +183,7 @@ class Dive:
                 name='Surface'
             )
 
-            layout = go.Layout(title=self.shape, yaxis=dict(autorange='reversed'))
+            layout = go.Layout(title=self.shape,xaxis=dict(title='Time'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
 
             plot_data = [descent, bottom, ascent, surface]
 
@@ -199,7 +198,7 @@ class Dive:
                 name='Dive'
             )
 
-            layout = go.Layout(title=str(self.shape), yaxis=dict(autorange='reversed'))
+            layout = go.Layout(title=str(self.shape),xaxis=dict(title='Time'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
 
             plot_data = [dive]
 
