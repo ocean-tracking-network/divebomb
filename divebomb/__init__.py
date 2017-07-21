@@ -78,7 +78,7 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
     # Remove dives shorter than five points and reset the index
     starts = starts[(starts.end_block - starts.start_block) >= 5]
     starts.reset_index(inplace=True, drop=True)
-    
+
     # Use the interact widget to display the dives using a slider to indicate the index.
     if ipython_display_mode:
         py.init_notebook_mode()
