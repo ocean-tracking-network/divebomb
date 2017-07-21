@@ -1,3 +1,9 @@
+'''
+Dive
+----
+'''
+
+
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
@@ -6,16 +12,17 @@ import plotly.graph_objs as go
 import copy
 import sys
 from DiveShape import DiveShape
-from netCDF4 import Dataset, num2date
-
+from netCDF4 import Dataset, num2date, date2num
 
 units = 'seconds since 1970-01-01'
-
 
 class Dive:
     # Durations are in seconds and velocity in m/s
     def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}, surface_threshold=3.0):
         self.sufficient=True
+        if data[columns['time']].dtypes != np.float64:
+            data.time = num2date(data.time.tolist(),units=units)
+
         self.data = data.sort_values('time').reset_index(drop=True)
         self.surface_threshold = surface_threshold
 

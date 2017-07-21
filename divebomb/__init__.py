@@ -22,13 +22,17 @@ Each dive is then profiled with the following attributes:
 import pandas as pd
 from Dive import Dive
 import os
+import numpy as np
 import __future__
 from ipywidgets import interact, interactive, fixed, interact_manual, Layout
 import ipywidgets as widgets
 import plotly.offline as py
 import plotly.graph_objs as go
+from netCDF4 import date2num
+
 pd.options.mode.chained_assignment = None
 
+units = 'seconds since 1970-01-01'
 
 '''
 display_dive()
@@ -50,7 +54,8 @@ five points are ignored. The starting points, along with the original data can t
 will either display the dives in an iPython notebook or export the data to a folder of CSVs.
 '''
 def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, surface_threshold=3.0, ipython_display_mode=False):
-
+    if data[columns['time']].dtypes != np.float64:
+        data[columns['time']] = date2num(pd.to_datetime(data[columns['time']]).tolist(),units=units)
     # Sort data into a time series and create the 1st and 2nd derivatives (velocity and acceleration)
     data = data.sort_values(by=columns['time'])
     data['velocity'] = data[columns['depth']].diff() / data[columns['time']].diff()
@@ -73,7 +78,7 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
     # Remove dives shorter than five points and reset the index
     starts = starts[(starts.end_block - starts.start_block) >= 5]
     starts.reset_index(inplace=True, drop=True)
-
+    
     # Use the interact widget to display the dives using a slider to indicate the index.
     if ipython_display_mode:
         py.init_notebook_mode()
