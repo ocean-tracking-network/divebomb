@@ -95,7 +95,7 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
         # If the user indicates that the results should be stored iterate through and add the dives to a dataframe
         dives = pd.DataFrame()
         for index, row in starts.iterrows():
-            dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']], surface_threshold=surface_threshold)
+            dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']], surface_threshold=surface_threshold, suppress_warning=True)
             dives = dives.append(dive_profile.to_dict(), ignore_index=True)
 
         # Create the folder and save the files

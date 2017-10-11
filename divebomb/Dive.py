@@ -34,7 +34,7 @@ units = 'seconds since 1970-01-01'
 
 
 class Dive:
-    def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}, surface_threshold=3.0):
+    def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}, surface_threshold=3.0, suppress_warning=False):
         self.sufficient=True
         if data[columns['time']].dtypes != np.float64:
             data.time = num2date(data.time.tolist(),units=units)
@@ -70,7 +70,8 @@ class Dive:
                 self.ascent_velocity = None
                 self.shape = DiveShape.SHALLOW
             else:
-                print "Error: There is not enough information for this dive.\n"+str(self.data.time.min() )+ " to "+str(self.data.time.max())
+                if not suppress_warning:
+                    print "Warning: There is not enough information for this dive.\n"+str(self.data.time.min() )+ " to "+str(self.data.time.max())
 
     # Calculate and set the descent duration.
     # Iterates through the start of the dive looking for a change in the standard deviation.
@@ -79,7 +80,7 @@ class Dive:
         std_dev = 0
         for i, r in self.data.iterrows():
             next_std_dev = np.std(self.data.loc[:i, 'depth'])
-            if (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i + 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * 0.8):
+            if (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i + 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * 0.85):
                 self.bottom_start = self.data.loc[i, 'time']
                 return (self.data.loc[i, 'time'] - self.data.loc[0, 'time'])
                 break
@@ -101,12 +102,13 @@ class Dive:
                 break
 
         # Finds the the change in standard deviation to determine the end of the bottom of the divide.
-        for i, r in self.data.sort_values('time', ascending=False)[:end_index].iterrows():
+        for i, r in self.data[:end_index].sort_values('time', ascending=False).iterrows():
             next_std_dev = np.std(self.data.loc[i:end_index, 'depth'])
             if (next_std_dev < std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i - 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * 0.85):
                 self.td_bottom_duration = self.data.loc[i,'time'] - self.bottom_start
                 if(end_index > 0):
                     return (self.data.loc[end_index, 'time'] - self.data.loc[i, 'time'])
+
                 break
             else:
                 std_dev = next_std_dev
