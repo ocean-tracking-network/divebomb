@@ -41,10 +41,10 @@ display_dive()
 --------------
 This function just takes the index, the data, and the starts and displays the dive using plotly.
 '''
-def display_dive(index, data, starts,  surface_threshold):
+def display_dive(index, data, starts,  surface_threshold, skew_mod=0.15):
     index = int(index)
     print str(starts.loc[index, 'start_block']) + ":" + str(starts.loc[index, 'end_block'])
-    dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']],  surface_threshold=surface_threshold)
+    dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']],  surface_threshold=surface_threshold, skew_mod=skew_mod)
     return dive_profile.plot()
 
 '''
@@ -55,7 +55,7 @@ are found by looking at the change in the second derivative, the change in depth
 five points are ignored. The starting points, along with the original data can then be modeled into dives using the Dive class. The function
 will either display the dives in an iPython notebook or export the data to a folder of CSVs.
 '''
-def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, surface_threshold=3.0, ipython_display_mode=False):
+def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, surface_threshold=3.0, skew_mod=0.15, ipython_display_mode=False):
     for k, v in columns.iteritems():
         if k != v:
             data[k] = data[v]
@@ -88,14 +88,14 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
     # Use the interact widget to display the dives using a slider to indicate the index.
     if ipython_display_mode:
         py.init_notebook_mode()
-        return interact(display_dive, index=widgets.IntSlider(min=0, max=starts.index.max(), step=1, value=0, layout=Layout(width='100%')), data=fixed(data), starts=fixed(starts), surface_threshold=fixed(surface_threshold))
+        return interact(display_dive, index=widgets.IntSlider(min=0, max=starts.index.max(), step=1, value=0, layout=Layout(width='100%')), data=fixed(data), starts=fixed(starts), surface_threshold=fixed(surface_threshold), skew_mod=fixed(skew_mod))
     elif folder is None:
         return 'Error: You must provide a folder name or set ipython_display_mode=True'
     else:
         # If the user indicates that the results should be stored iterate through and add the dives to a dataframe
         dives = pd.DataFrame()
         for index, row in starts.iterrows():
-            dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']], surface_threshold=surface_threshold, suppress_warning=True)
+            dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']], surface_threshold=surface_threshold, skew_mod=skew_mod, suppress_warning=True)
             dives = dives.append(dive_profile.to_dict(), ignore_index=True)
 
         # Create the folder and save the files

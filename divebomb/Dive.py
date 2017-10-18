@@ -34,7 +34,7 @@ units = 'seconds since 1970-01-01'
 
 
 class Dive:
-    def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}, surface_threshold=3.0, suppress_warning=False):
+    def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}, surface_threshold=3.0, skew_mod=0.15, suppress_warning=False):
         self.sufficient=True
         if data[columns['time']].dtypes != np.float64:
             data.time = num2date(data.time.tolist(),units=units)
@@ -55,9 +55,10 @@ class Dive:
             self.td_ascent_duration = self.get_ascent_duration()
             self.td_surface_duration = self.get_surface_duration()
             self.bottom_variance = self.set_bottom_variance()
+            self.dive_variance = self.set_dive_variance()
             self.descent_velocity = self.get_descent_velocity()
             self.ascent_velocity = self.get_ascent_velocity()
-            self.shape = self.set_dive_shape()
+            self.shape = self.set_dive_shape(skew_mod=skew_mod)
 
         except Exception:
             self.sufficient=False
@@ -66,6 +67,7 @@ class Dive:
                 self.td_ascent_duration = None
                 self.td_surface_duration = None
                 self.bottom_variance = None
+                self.dive_variance = None
                 self.descent_velocity = None
                 self.ascent_velocity = None
                 self.shape = DiveShape.SHALLOW
@@ -136,24 +138,39 @@ class Dive:
 
     # Calculate and set the bottom variance
     def set_bottom_variance(self):
+        dive_data = self.data[(self.data.time >= self.dive_start) & (self.data.time <= (self.bottom_start + self.td_bottom_duration + self.td_ascent_duration))]
+        self.dive_variance = np.std(dive_data.depth)
         bottom_data = self.data[(self.data.time >= self.bottom_start) & (self.data.time <= (self.bottom_start + self.td_bottom_duration))]
         self.bottom_variance = np.std(bottom_data.depth)
         return self.bottom_variance
 
+    # Calculate and set total dive variance
+    def set_dive_variance(self):
+        dive_data = self.data[(self.data.time >= self.dive_start) & (self.data.time <= (self.bottom_start + self.td_bottom_duration + self.td_ascent_duration))]
+        self.dive_variance = np.std(dive_data.depth)
+        return self.dive_variance
+
+    def get_skew(self, skew_mod, max_velocity=10):
+        point = np.array([self.descent_velocity, self.ascent_velocity])
+        print point
+        lower_points = [np.array([0, (0-skew_mod)]), np.array([max_velocity, (max_velocity-skew_mod)])]
+        upper_points = [np.array([0, skew_mod]), np.array([max_velocity, (max_velocity+skew_mod)])]
+        left_skewed = np.cross(point-upper_points[0], upper_points[1] - upper_points[0]) < 0
+        right_skewed = np.cross(point-lower_points[0], lower_points[1] - lower_points[0]) > 0
+        if right_skewed:
+            return str(DiveShape.RIGHTSKEW) + ' - '
+        if left_skewed:
+            return str(DiveShape.LEFTSKEW) + ' - '
+        return ""
+
     # Determine the dive shape
-    def set_dive_shape(self, minimum_skew_ratio=2, v_threshold=0.1, min_variance=0.5):
+    def set_dive_shape(self, skew_mod=0.15, v_threshold=0.1, variance_mod=0.03):
         shape = ""
 
         # Calculate the total duration of the dive
         total_duration = self.td_descent_duration + self.td_bottom_duration + self.td_ascent_duration
 
-        # Determine if the dive is skewed based on whether ascent id 2x longer than the descent and vice versa
-        if self.td_ascent_duration > self.td_descent_duration * minimum_skew_ratio:
-            shape += str(DiveShape.RIGHTSKEW)
-            shape += " - "
-        elif self.td_descent_duration > self.td_ascent_duration * minimum_skew_ratio:
-            shape += str(DiveShape.LEFTSKEW)
-            shape += " - "
+        shape += self.get_skew(skew_mod)
 
         # Determine if the the dive is either V-Shaped or a Square based on the bottom duration
         if self.td_bottom_duration <= total_duration * v_threshold:
@@ -164,7 +181,7 @@ class Dive:
             shape += " - "
 
         # Determine if the dive a wiggle or flat dive based on the bottom variance
-        if self.bottom_variance > min_variance:
+        if self.bottom_variance > self.dive_variance*variance_mod:
             shape += str(DiveShape.WIGGLE)
         else:
             shape += str(DiveShape.FLAT)
