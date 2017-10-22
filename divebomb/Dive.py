@@ -152,7 +152,6 @@ class Dive:
 
     def get_skew(self, skew_mod, max_velocity=10):
         point = np.array([self.descent_velocity, self.ascent_velocity])
-        print point
         lower_points = [np.array([0, (0-skew_mod)]), np.array([max_velocity, (max_velocity-skew_mod)])]
         upper_points = [np.array([0, skew_mod]), np.array([max_velocity, (max_velocity+skew_mod)])]
         left_skewed = np.cross(point-upper_points[0], upper_points[1] - upper_points[0]) < 0
