@@ -10,8 +10,10 @@ class DiveShape(Enum):
 
     SQUARE = 'square'
     VSHAPE = 'v-shape'
-    LEFTSKEW = 'left skewed'
-    RIGHTSKEW = 'right skewed'
+    USHAPE = 'u-shape'
+    WSHAPE = 'w-shape'
+    LEFTSKEW = 'left'
+    RIGHTSKEW = 'right'
     OTHER = 'other'
     WIGGLE = 'wiggle'
     FLAT = 'flat'
