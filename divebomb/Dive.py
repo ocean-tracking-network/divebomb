@@ -102,7 +102,7 @@ class Dive:
 
         # Find the crest of the dive in reversed values
         for i, r in self.data.sort_values('time', ascending=False).iterrows():
-            if self.data.loc[(i - 1), 'depth'] > self.surface_threshold:
+            if self.data.loc[(i - 1), 'depth'] >= self.surface_threshold:
                 end_index = i
                 break
 
@@ -169,6 +169,9 @@ class Dive:
     def set_dive_shape(self, skew_mod=0.15, v_threshold=0.1, variance_mod=0.03):
         # Calculate the total duration of the dive
         total_duration = self.td_descent_duration + self.td_bottom_duration + self.td_ascent_duration
+        if self.td_surface_duration > total_duration*4:
+            self.dive_shape = str(DiveShape.SURFACE)
+            return self.dive_shape
 
         self.dive_skew = self.get_skew(skew_mod)
 

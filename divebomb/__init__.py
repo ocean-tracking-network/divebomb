@@ -31,6 +31,7 @@ import ipywidgets as widgets
 import plotly.offline as py
 import plotly.graph_objs as go
 from netCDF4 import date2num
+import math
 
 pd.options.mode.chained_assignment = None
 
@@ -56,6 +57,7 @@ five points are ignored. The starting points, along with the original data can t
 will either display the dives in an iPython notebook or export the data to a folder of CSVs.
 '''
 def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, surface_threshold=3.0, skew_mod=0.15, ipython_display_mode=False):
+    surface_threshold = math.cos(math.radians(45)) * surface_threshold
     for k, v in columns.iteritems():
         if k != v:
             data[k] = data[v]
@@ -85,17 +87,20 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
     for index, row in starts.iterrows():
         starts.loc[index, 'max_depth'] = data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']].depth.max()
 
-    starts = starts[starts.max_depth > surface_threshold]
+
+    starts = starts[(starts.max_depth > surface_threshold)]
     starts.drop(['start_block', 'end_block', 'max_depth'], axis=1, inplace=True)
+    starts['time_diff'] = starts.time.diff()
+    starts = starts[(starts.time_diff >= 30)]
 
     # Store the starting index and end index for each of the dives
     starts['start_block'] = starts.index
     starts['end_block'] = starts.start_block.shift(-1) + 1
+
     starts.end_block.fillna(data.index.max(), inplace=True)
     starts.end_block = starts.end_block.astype(int)
-
     # Remove dives shorter than five points and reset the index
-    starts = starts[(starts.end_block - starts.start_block) >= 5]
+
     starts.reset_index(inplace=True, drop=True)
 
     profiles = []

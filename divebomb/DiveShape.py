@@ -15,6 +15,8 @@ class DiveShape(Enum):
     LEFTSKEW = 'left'
     RIGHTSKEW = 'right'
     OTHER = 'other'
+    UNKNOWN = 'unkown'
+    SURFACE = 'surface'
     WIGGLE = 'wiggle'
     FLAT = 'flat'
     SHALLOW = 'shallow'
