@@ -29,6 +29,7 @@ import copy
 import sys
 from DiveShape import DiveShape
 from netCDF4 import Dataset, num2date, date2num
+import peakutils as pk
 
 units = 'seconds since 1970-01-01'
 
@@ -53,6 +54,7 @@ class Dive:
         self.dive_skew = None
         self.bottom_shape = None
         self.dive_shape = None
+        self.bottom_difference = None
         try:
             self.td_descent_duration = self.get_descent_duration()
             self.td_ascent_duration = self.get_ascent_duration()
@@ -85,7 +87,7 @@ class Dive:
         std_dev = 0
         for i, r in self.data.iterrows():
             next_std_dev = np.std(self.data.loc[:i, 'depth'])
-            if (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i + 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * 0.85):
+            if (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i + 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * 0.80):
                 self.bottom_start = self.data.loc[i, 'time']
                 return (self.data.loc[i, 'time'] - self.data.loc[0, 'time'])
                 break
@@ -109,7 +111,7 @@ class Dive:
         # Finds the the change in standard deviation to determine the end of the bottom of the divide.
         for i, r in self.data[:end_index].sort_values('time', ascending=False).iterrows():
             next_std_dev = np.std(self.data.loc[i:end_index, 'depth'])
-            if (next_std_dev < std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i - 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * 0.85):
+            if (next_std_dev < std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i - 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * 0.80):
                 self.td_bottom_duration = self.data.loc[i,'time'] - self.bottom_start
                 if(end_index > 0):
                     return (self.data.loc[end_index, 'time'] - self.data.loc[i, 'time'])
@@ -145,6 +147,7 @@ class Dive:
         self.dive_variance = np.std(dive_data.depth)
         bottom_data = self.data[(self.data.time >= self.bottom_start) & (self.data.time <= (self.bottom_start + self.td_bottom_duration))]
         self.bottom_variance = np.std(bottom_data.depth)
+        self.bottom_difference = bottom_data.depth.max() - bottom_data.depth.min()
         return self.bottom_variance
 
     # Calculate and set total dive variance
@@ -166,10 +169,10 @@ class Dive:
         return None
 
     # Determine the dive shape
-    def set_dive_shape(self, skew_mod=0.15, v_threshold=0.1, variance_mod=0.03):
+    def set_dive_shape(self, skew_mod=0.15, v_threshold=0.1):
         # Calculate the total duration of the dive
         total_duration = self.td_descent_duration + self.td_bottom_duration + self.td_ascent_duration
-        if self.td_surface_duration > total_duration*4:
+        if self.td_surface_duration > total_duration*4 and self.max_depth <= 2*self.surface_threshold:
             self.dive_shape = str(DiveShape.SURFACE)
             return self.dive_shape
 
@@ -182,9 +185,16 @@ class Dive:
             self.dive_shape = str(DiveShape.SQUARE)
 
         # Determine if the dive a wiggle or flat dive based on the bottom variance
-        if self.bottom_variance > self.dive_variance*variance_mod:
+        peaks = pk.indexes(self.data.depth*(-1), thres=(self.surface_threshold/self.max_depth), min_dist=10/self.data.time.diff().mean())
+        bottom_data = self.data[(self.data.time >= self.bottom_start) & (
+            self.data.time <= (self.bottom_start + self.td_bottom_duration))]
+
+        peak_count = len(bottom_data[bottom_data.index.isin(peaks)])
+        if peak_count == 1:
+            self.dive_shape = str(DiveShape.WSHAPE)
+        elif peak_count > 1:
             self.bottom_shape = str(DiveShape.WIGGLE)
-        else:
+        elif self.dive_shape != str(DiveShape.VSHAPE):
             self.bottom_shape = str(DiveShape.FLAT)
 
         # Set the shape
@@ -244,7 +254,12 @@ class Dive:
             skew_string = ""
             if self.dive_skew is not None:
                 skew_string = self.dive_skew + ' skewed -'
-            layout = go.Layout(title='Classification: {} {} - {}'.format(skew_string, self.dive_shape, self.bottom_shape),
+            if self.bottom_shape is None:
+                bottom_string = ""
+            else:
+                bottom_string = self.bottom_shape
+
+            layout = go.Layout(title='Classification: {} {} - {}'.format(skew_string, self.dive_shape, bottom_string),
                                xaxis=dict(title='Time'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
             plot_data = [descent, bottom, ascent, surface]
             fig = go.Figure(data=plot_data, layout=layout)

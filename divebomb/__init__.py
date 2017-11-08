@@ -56,8 +56,8 @@ are found by looking at the change in the second derivative, the change in depth
 five points are ignored. The starting points, along with the original data can then be modeled into dives using the Dive class. The function
 will either display the dives in an iPython notebook or export the data to a folder of CSVs.
 '''
-def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, surface_threshold=3.0, skew_mod=0.15, ipython_display_mode=False):
-    surface_threshold = math.cos(math.radians(45)) * surface_threshold
+def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, animal_length=3.0, skew_mod=0.15, ipython_display_mode=False):
+    surface_threshold = math.cos(math.radians(45)) * animal_length
     for k, v in columns.iteritems():
         if k != v:
             data[k] = data[v]

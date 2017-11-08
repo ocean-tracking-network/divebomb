@@ -1,11 +1,6 @@
 *.pyc
 *.ipynb_checkpoints/
 *.DS_Store
-*.nc
-results/*
-narwhal*
-results*
-Icon*
-asc*
-nw*
-batch*
+/build/
+/dist/
+/*.egg-info
