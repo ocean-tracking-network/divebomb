@@ -185,7 +185,10 @@ class Dive:
             self.dive_shape = str(DiveShape.SQUARE)
 
         # Determine if the dive a wiggle or flat dive based on the bottom variance
-        peaks = pk.indexes(self.data.depth*(-1), thres=(self.surface_threshold/self.max_depth), min_dist=10/self.data.time.diff().mean())
+        peaks = pk.indexes(self.data.depth*(-1),
+                           thres=max([(self.surface_threshold/self.max_depth),
+                                       0.05]),
+                           min_dist=max([10/self.data.time.diff().mean(), 3]))
         bottom_data = self.data[(self.data.time >= self.bottom_start) & (
             self.data.time <= (self.bottom_start + self.td_bottom_duration))]
 
@@ -257,9 +260,9 @@ class Dive:
             if self.bottom_shape is None:
                 bottom_string = ""
             else:
-                bottom_string = self.bottom_shape
+                bottom_string = '- ' + self.bottom_shape
 
-            layout = go.Layout(title='Classification: {} {} - {}'.format(skew_string, self.dive_shape, bottom_string),
+            layout = go.Layout(title='Classification: {} {} {}'.format(skew_string, self.dive_shape, bottom_string),
                                xaxis=dict(title='Time'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
             plot_data = [descent, bottom, ascent, surface]
             fig = go.Figure(data=plot_data, layout=layout)
