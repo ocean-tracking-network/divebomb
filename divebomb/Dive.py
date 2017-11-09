@@ -185,9 +185,12 @@ class Dive:
             self.dive_shape = str(DiveShape.SQUARE)
 
         # Determine if the dive a wiggle or flat dive based on the bottom variance
+        bottom_data = self.data[(self.data.time >= self.bottom_start) & (self.data.time <= (self.bottom_start + self.td_bottom_duration))]
+
+        peak_thres =(1 - (bottom_data.depth.mean() - (self.surface_threshold))/ bottom_data.depth.max())
+
         peaks = pk.indexes(self.data.depth*(-1),
-                           thres=max([(self.surface_threshold/self.max_depth),
-                                       0.05]),
+                           thres=min([0.33,peak_thres]),
                            min_dist=max([10/self.data.time.diff().mean(), 3]))
         bottom_data = self.data[(self.data.time >= self.bottom_start) & (
             self.data.time <= (self.bottom_start + self.td_bottom_duration))]
