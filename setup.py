@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 
 
-with open('README.md') as f:
+with open('README') as f:
     readme = f.read()
 
 with open('LICENSE') as f:
@@ -11,7 +11,7 @@ with open('LICENSE') as f:
 
 setup(
     name='divebomb',
-    version='0.0.1',
+    version='0.0.6',
     description='divebomb dive classification algorithm',
     long_description=readme,
     author='Alex Nunes',

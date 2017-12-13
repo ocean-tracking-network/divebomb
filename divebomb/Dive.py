@@ -87,7 +87,7 @@ class Dive:
         std_dev = 0
         for i, r in self.data.iterrows():
             next_std_dev = np.std(self.data.loc[:i, 'depth'])
-            if (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i + 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * 0.80):
+            if (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i + 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * 0.85):
                 self.bottom_start = self.data.loc[i, 'time']
                 return (self.data.loc[i, 'time'] - self.data.loc[0, 'time'])
                 break
@@ -111,7 +111,7 @@ class Dive:
         # Finds the the change in standard deviation to determine the end of the bottom of the divide.
         for i, r in self.data[:end_index].sort_values('time', ascending=False).iterrows():
             next_std_dev = np.std(self.data.loc[i:end_index, 'depth'])
-            if (next_std_dev < std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i - 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * 0.80):
+            if ((next_std_dev < std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i - 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * 0.85)) or self.data.loc[i, 'depth'] > (self.max_depth * 0.90):
                 self.td_bottom_duration = self.data.loc[i,'time'] - self.bottom_start
                 if(end_index > 0):
                     return (self.data.loc[end_index, 'time'] - self.data.loc[i, 'time'])
@@ -156,15 +156,10 @@ class Dive:
         self.dive_variance = np.std(dive_data.depth)
         return self.dive_variance
 
-    def get_skew(self, skew_mod, max_velocity=10):
-        point = np.array([self.descent_velocity, self.ascent_velocity])
-        lower_points = [np.array([0, (0-skew_mod)]), np.array([max_velocity, (max_velocity-skew_mod)])]
-        upper_points = [np.array([0, skew_mod]), np.array([max_velocity, (max_velocity+skew_mod)])]
-        left_skewed = np.cross(point-upper_points[0], upper_points[1] - upper_points[0]) < 0
-        right_skewed = np.cross(point-lower_points[0], lower_points[1] - lower_points[0]) > 0
-        if right_skewed:
+    def get_skew(self, skew_mod):
+        if self.td_ascent_duration > self.td_descent_duration:
             return str(DiveShape.RIGHTSKEW)
-        if left_skewed:
+        if self.td_descent_duration > self.td_ascent_duration:
             return str(DiveShape.LEFTSKEW)
         return None
 
@@ -176,6 +171,8 @@ class Dive:
             self.dive_shape = str(DiveShape.SURFACE)
             return self.dive_shape
 
+
+
         self.dive_skew = self.get_skew(skew_mod)
 
         # Determine if the the dive is either V-Shaped or a Square based on the bottom duration
@@ -185,17 +182,19 @@ class Dive:
             self.dive_shape = str(DiveShape.SQUARE)
 
         # Determine if the dive a wiggle or flat dive based on the bottom variance
-        bottom_data = self.data[(self.data.time >= self.bottom_start) & (self.data.time <= (self.bottom_start + self.td_bottom_duration))]
+        peak_thres = (1 - (self.data.depth.mean() - (self.surface_threshold))/ self.data.depth.max())
+        peaks = pk.indexes(self.data.depth*(-1), thres=min([0.2, peak_thres]), min_dist=max((10/self.data.time.diff().mean()),3))
 
-        peak_thres =(1 - (bottom_data.depth.mean() - (self.surface_threshold))/ bottom_data.depth.max())
-
-        peaks = pk.indexes(self.data.depth*(-1),
-                           thres=min([0.33,peak_thres]),
-                           min_dist=max([10/self.data.time.diff().mean(), 3]))
         bottom_data = self.data[(self.data.time >= self.bottom_start) & (
             self.data.time <= (self.bottom_start + self.td_bottom_duration))]
 
-        peak_count = len(bottom_data[bottom_data.index.isin(peaks)])
+        if self.dive_shape != str(DiveShape.VSHAPE):
+            peak_count = len(bottom_data[bottom_data.index.isin(peaks)])
+        else:
+            # subtract one for the single peak always found in the ascent
+            peak_count = len(peaks) - 1
+
+        self.peaks = peak_count
         if peak_count == 1:
             self.dive_shape = str(DiveShape.WSHAPE)
         elif peak_count > 1:
@@ -280,7 +279,7 @@ class Dive:
                 name='Dive'
             )
 
-            layout = go.Layout(title=str(self.dive_shap),xaxis=dict(title='Time'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
+            layout = go.Layout(title=str(self.dive_shape),xaxis=dict(title='Time'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
 
             plot_data = [dive]
 
