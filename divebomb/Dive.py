@@ -15,9 +15,9 @@ units = 'seconds since 1970-01-01'
 class Dive:
     def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}, surface_threshold=3.0, suppress_warning=False):
         """
-        :param data:
-        :param surface_threshold:
-        :param supress_warning:
+        :param data: the time and depth values for the dive
+        :param surface_threshold: minmum depth to constitute a dive
+        :param supress_warning: indicator to ignore dives dives with little data
 
         """
 
@@ -63,7 +63,7 @@ class Dive:
                 self.dive_shape = DiveShape.SHALLOW
             else:
                 if not suppress_warning:
-                    print "Warning: There is not enough information for this dive.\n"+str(self.data.time.min() )+ " to "+str(self.data.time.max())
+                    print("Warning: There is not enough information for this dive.\n"+str(self.data.time.min() )+ " to "+str(self.data.time.max()))
 
     # Calculate and set the descent duration.
     # Iterates through the start of the dive looking for a change in the standard deviation.
@@ -314,4 +314,4 @@ class Dive:
             fig = go.Figure(data=plot_data, layout=layout)
             return py.iplot(fig)
         else:
-            print "Insufficient data to plot."
+            print("Insufficient data to plot.")

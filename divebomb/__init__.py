@@ -28,7 +28,7 @@ def display_dive(index, data, starts,  surface_threshold):
     """
 
     index = int(index)
-    print str(starts.loc[index, 'start_block']) + ":" + str(starts.loc[index, 'end_block'])
+    print(str(starts.loc[index, 'start_block']) + ":" + str(starts.loc[index, 'end_block']))
     dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']],  surface_threshold=surface_threshold)
     return dive_profile.plot()
 
