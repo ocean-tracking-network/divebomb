@@ -1,26 +1,3 @@
-'''
-Divebomb
----------------------------------
-Divebomb is a python package that uses pandas to divide a timeseries of depths into idividual dives.
-
-Each dive is then profiled with the following attributes:
-    max_depth - the max depth in the dive
-    dive_start - the timestamp of the first point in the dive.
-    bottom_start - the timestamp of the first point in the dive when the animal is at depth.
-    td_bottom_duration - a timedelta object containing the duration of the time the animal is at depth in seconds.
-    td_descent_duration - a timedelta object containing the duration of the time the animal is descending in seconds.
-    td_ascent_duration - a timedelta object containing the duration of the time the animal is ascending in seconds.
-    td_surface_duration - a timedelta object containing the duration of the time the animal is at the surface in seconds.
-    bottom_variance - the variance of the depth while the animal is at the bottom of the dive.
-    descent_velocity - the average velocity of the descent.
-    ascent_velocity the average velocity of the descent.
-    shape - the text calssification of the dive using the DiveShape enumeration.
-
-The dives are then display through iPython notebooks or saved to CSV files.
-
-
-'''
-
 import pandas as pd
 from Dive import Dive
 import os
@@ -37,33 +14,51 @@ pd.options.mode.chained_assignment = None
 
 units = 'seconds since 1970-01-01'
 
-'''
-display_dive()
---------------
-This function just takes the index, the data, and the starts and displays the dive using plotly.
-'''
+
 def display_dive(index, data, starts,  surface_threshold):
+    """
+    This function just takes the index, the data, and the starts and displays the dive using plotly.
+
+    :param index: the index of the dive profile to plot
+    :param data: the dataframe of the original dive data
+    :param starts: the dataframe of the dive starts
+    :param surface_threshold: the calculated surface threshold based on animal length
+    :return: a dive plot from plotly
+
+    """
+
     index = int(index)
     print str(starts.loc[index, 'start_block']) + ":" + str(starts.loc[index, 'end_block'])
     dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']],  surface_threshold=surface_threshold)
     return dive_profile.plot()
 
-'''
-profile_dives()
---------------
-This function takes the data and generates the first and second derivatives to find the starting points of the dives. The starting points
-are found by looking at the change in the second derivative, the change in depth, and the surface threshold. Short dives of less than
-five points are ignored. The starting points, along with the original data can then be modeled into dives using the Dive class. The function
-will either display the dives in an iPython notebook or export the data to a folder of CSVs.
-'''
-def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, animal_length=3.0, skew_mod=0.15, ipython_display_mode=False):
+
+def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, animal_length=3.0, ipython_display_mode=False):
+    """
+    profiles the dives
+
+    :param data: a dataframe needing a time and a depth column
+    :param folder: a parent folder to write out to
+    :param columns: column renaming dictionary if needed
+    :param acceleration_threshold: the minimu change in acceleration to determine the start point
+    :param  animal_length: length of the animal in meters
+    :param  ipython_display_mode: whether or not to display the dives
+    :return: three dataframes for the dive profiles, start blocks, and the original data
+
+    """
+
+    # Get surface thresholdbased on animal length
     surface_threshold = math.cos(math.radians(45)) * animal_length
+
+    # drop all columns in the dataframe that aren't time or depth
     for k, v in columns.iteritems():
         if k != v:
             data[k] = data[v]
             data.drop(v, axis=1)
+    # Convert time to seconds since
     if data[columns['time']].dtypes != np.float64:
         data[columns['time']] = date2num(pd.to_datetime(data[columns['time']]).tolist(), units=units)
+
     # Sort data into a time series and create the 1st and 2nd derivatives (velocity and acceleration)
     data = data.sort_values(by=columns['time'])
     data['velocity'] = data[columns['depth']].diff() / data[columns['time']].diff()
@@ -103,28 +98,10 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
 
     starts.reset_index(inplace=True, drop=True)
 
-    profiles = []
-    df_velocities = pd.DataFrame(columns=['ascent_velocity', 'descent_velocity'])
-
-    for index, row in starts.iterrows():
-        dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']], surface_threshold=surface_threshold, suppress_warning=True)
-        df_velocities = df_velocities.append({'ascent_velocity': dive_profile.ascent_velocity, 'descent_velocity': dive_profile.descent_velocity}, ignore_index=True)
-        profiles.append(dive_profile)
-
-    df_velocities.dropna(inplace=True)
-    asc_covar = np.std(df_velocities.ascent_velocity.tolist())/np.mean(df_velocities.ascent_velocity.tolist())
-    desc_covar = np.std(df_velocities.descent_velocity.tolist())/np.mean(df_velocities.descent_velocity.tolist())
-
-    skew_mod = 1 - min([asc_covar, desc_covar])
-
-    for dive in profiles:
-        if dive.sufficient:
-            dive.set_dive_shape(skew_mod=skew_mod)
-
     # Use the interact widget to display the dives using a slider to indicate the index.
     if ipython_display_mode:
         py.init_notebook_mode()
-        return interact(display_dive, index=widgets.IntSlider(min=0, max=starts.index.max(), step=1, value=0, layout=Layout(width='100%')), data=fixed(data), starts=fixed(starts), surface_threshold=fixed(surface_threshold), skew_mod=fixed(skew_mod))
+        return interact(display_dive, index=widgets.IntSlider(min=0, max=starts.index.max(), step=1, value=0, layout=Layout(width='100%')), data=fixed(data), starts=fixed(starts), surface_threshold=fixed(surface_threshold))
     elif folder is None:
         return 'Error: You must provide a folder name or set ipython_display_mode=True'
     else:

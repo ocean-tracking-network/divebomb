@@ -1,25 +1,3 @@
-'''
-Dive
-----
-This class creates a profile of the dive with the following attributes:
-Each dive is then profiled with the following attributes:
-    max_depth - the max depth in the dive.
-    dive_start - the timestamp of the first point in the dive.
-    bottom_start - the timestamp of the first point in the dive when the animal is at depth.
-    td_bottom_duration - a timedelta object containing the duration of the time the animal is at depth in seconds.
-    td_descent_duration - a timedelta object containing the duration of the time the animal is descending in seconds.
-    td_ascent_duration - a timedelta object containing the duration of the time the animal is ascending in seconds.
-    td_surface_duration - a timedelta object containing the duration of the time the animal is at the surface in seconds.
-    bottom_variance - the variance of the depth while the animal is at the bottom of the dive.
-    descent_velocity - the average velocity of the descent.
-    ascent_velocity the average velocity of the descent.
-    shape - the text calssification of the dive using the DiveShape enumeration.
-
-The profile can also be plotted using plotly.
-
-'''
-
-
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
@@ -35,7 +13,14 @@ units = 'seconds since 1970-01-01'
 
 
 class Dive:
-    def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}, surface_threshold=3.0, skew_mod=0.15, suppress_warning=False):
+    def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}, surface_threshold=3.0, suppress_warning=False):
+        """
+        :param data:
+        :param surface_threshold:
+        :param supress_warning:
+
+        """
+
         self.sufficient=True
         if data[columns['time']].dtypes != np.float64:
             data.time = num2date(data.time.tolist(),units=units)
@@ -63,7 +48,7 @@ class Dive:
             self.dive_variance = self.set_dive_variance()
             self.descent_velocity = self.get_descent_velocity()
             self.ascent_velocity = self.get_ascent_velocity()
-            self.dive_shape = self.set_dive_shape(skew_mod=skew_mod)
+            self.dive_shape = self.set_dive_shape()
 
         except Exception:
             self.sufficient=False
@@ -84,6 +69,9 @@ class Dive:
     # Iterates through the start of the dive looking for a change in the standard deviation.
     # Once the change is found the descent duration is calculated using that point.
     def get_descent_duration(self):
+        """
+        :return: the descent duration in seconds
+        """
         std_dev = 0
         for i, r in self.data.iterrows():
             next_std_dev = np.std(self.data.loc[:i, 'depth'])
@@ -99,6 +87,11 @@ class Dive:
     # Iterates through the end of the dive looking for changes in standard deviation.
     # Once the change is found the ascent duration and bottom duration are set.
     def get_ascent_duration(self):
+        """
+        This function also sets the bottom duration.
+
+        :return: the ascent duration in seconds
+        """
         end_index = -1
         std_dev = 0
 
@@ -124,18 +117,27 @@ class Dive:
 
     # Get the surface duration by subtracting the ascent, descent, and bottom durations.
     def get_surface_duration(self):
+        """
+        :return: the surface duration in seconds
+        """
         duration = self.data.time.max() - self.data.time.min()
         self.td_surface_duration = duration - self.td_descent_duration - self.td_bottom_duration - self.td_ascent_duration
         return self.td_surface_duration
 
     # Calculate the descent velocity Delta Depth/Delta Time
     def get_descent_velocity(self):
+        """
+        :return: the descent velocity in m/s
+        """
         descent_data = self.data[self.data.time <= self.bottom_start]
         self.descent_velocity = (descent_data.depth.max() - descent_data.depth.min()) / self.td_descent_duration
         return self.descent_velocity
 
     # Calculate the ascent velocity Delta Depth/Delta Time
     def get_ascent_velocity(self):
+        """
+        :return: the ascent velocity in m/s
+        """
         ascent_data = self.data[self.data.time >= (
             self.bottom_start + self.td_bottom_duration)]
         self.ascent_velocity = (ascent_data.depth.max() - ascent_data.depth.min()) / self.td_ascent_duration
@@ -143,6 +145,11 @@ class Dive:
 
     # Calculate and set the bottom variance
     def set_bottom_variance(self):
+        """
+        This function also set total dive variance
+
+        :return: the standard variance in depth during the bottom portion of the dive in meters
+        """
         dive_data = self.data[(self.data.time >= self.dive_start) & (self.data.time <= (self.bottom_start + self.td_bottom_duration + self.td_ascent_duration))]
         self.dive_variance = np.std(dive_data.depth)
         bottom_data = self.data[(self.data.time >= self.bottom_start) & (self.data.time <= (self.bottom_start + self.td_bottom_duration))]
@@ -152,11 +159,17 @@ class Dive:
 
     # Calculate and set total dive variance
     def set_dive_variance(self):
+        """
+        :return: the standard variance in depth during dive in meters
+        """
         dive_data = self.data[(self.data.time >= self.dive_start) & (self.data.time <= (self.bottom_start + self.td_bottom_duration + self.td_ascent_duration))]
         self.dive_variance = np.std(dive_data.depth)
         return self.dive_variance
 
-    def get_skew(self, skew_mod):
+    def get_skew(self):
+        """
+        :return: a string of either right or left
+        """
         if self.td_ascent_duration > self.td_descent_duration:
             return str(DiveShape.RIGHTSKEW)
         if self.td_descent_duration > self.td_ascent_duration:
@@ -164,7 +177,13 @@ class Dive:
         return None
 
     # Determine the dive shape
-    def set_dive_shape(self, skew_mod=0.15, v_threshold=0.1):
+    def set_dive_shape(self, v_threshold=0.1):
+        """
+        This fucntion sets the dive_shape, the bottom_shape, and the dive_skew
+
+        :param v_threshold: an indicator between 0 and 1 to determine the point where the dive chape is a V
+        :return: a dive shape enumeration
+        """
         # Calculate the total duration of the dive
         total_duration = self.td_descent_duration + self.td_bottom_duration + self.td_ascent_duration
         if self.td_surface_duration > total_duration*4 and self.max_depth <= 2*self.surface_threshold:
@@ -173,7 +192,7 @@ class Dive:
 
 
 
-        self.dive_skew = self.get_skew(skew_mod)
+        self.dive_skew = self.get_skew()
 
         # Determine if the the dive is either V-Shaped or a Square based on the bottom duration
         if self.td_bottom_duration <= total_duration * v_threshold:
@@ -207,12 +226,21 @@ class Dive:
 
     # Return the dictionary of the object
     def to_dict(self):
+        """
+
+        :return: a dictionary of the dive profile
+        """
         dive = copy.deepcopy(self.__dict__)
         del dive['data']
         return dive
 
     # Used to plot the dive
     def plot(self):
+
+        """
+
+        :return: a plotly graph showing the phases of the dive
+        """
         # Set the data to plot the segments of the dive
         if self.sufficient and self.dive_shape != DiveShape.SHALLOW:
             # Get and set the descent data
