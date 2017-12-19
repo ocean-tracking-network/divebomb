@@ -1,5 +1,5 @@
 import pandas as pd
-from Dive import Dive
+from divebomb.Dive import Dive
 import os
 import numpy as np
 import __future__
@@ -51,7 +51,7 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
     surface_threshold = math.cos(math.radians(45)) * animal_length
 
     # drop all columns in the dataframe that aren't time or depth
-    for k, v in columns.iteritems():
+    for k, v in columns.items():
         if k != v:
             data[k] = data[v]
             data.drop(v, axis=1)
@@ -105,6 +105,11 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
     elif folder is None:
         return 'Error: You must provide a folder name or set ipython_display_mode=True'
     else:
+        profiles = []
+
+        for index, row in starts.iterrows():
+            dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']], surface_threshold=surface_threshold, suppress_warning=True)
+            profiles.append(dive_profile)
         # If the user indicates that the results should be stored iterate through and add the dives to a dataframe
         dives = pd.DataFrame()
         for dive in profiles:

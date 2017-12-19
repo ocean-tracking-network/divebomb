@@ -1,0 +1,41 @@
+package:
+  name: divebomb
+  version: "0.0.6"
+
+source:
+  git_rev: master
+  git_url: https://gitlab.oceantrack.org/anunes/divebomb
+
+build:
+  number: 1
+
+python:
+  - 2.7
+  - 3.5
+  - 3.6
+
+requirements:
+  build:
+    - python {{ python }}
+    - setuptools
+    - pandas
+    - numpy
+    - sphinx
+    - netcdf4
+    - peakutils
+
+  run:
+    - python {{ python }}
+    - setuptools
+    - pandas
+    - numpy
+    - sphinx
+    - plotly
+    - netcdf4
+    - peakutils
+
+
+about:
+  home: https://gitlab.oceantrack.org/anunes/divebomb
+  license: GPL
+  license_file: LICENSE

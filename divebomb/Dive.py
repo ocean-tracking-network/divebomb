@@ -5,7 +5,7 @@ import plotly.offline as py
 import plotly.graph_objs as go
 import copy
 import sys
-from DiveShape import DiveShape
+from divebomb.DiveShape import DiveShape
 from netCDF4 import Dataset, num2date, date2num
 import peakutils as pk
 
@@ -28,7 +28,7 @@ class Dive:
         self.data = data.sort_values('time').reset_index(drop=True)
         self.surface_threshold = surface_threshold
 
-        for k, v in columns.iteritems():
+        for k, v in columns.items():
             if k != v:
                 self.data[k] = self.data[v]
                 self.data.drop(v, axis=1)
