@@ -6,6 +6,7 @@ import plotly.graph_objs as go
 import copy
 import sys
 from divebomb.DiveShape import DiveShape
+
 from netCDF4 import Dataset, num2date, date2num
 import peakutils as pk
 
@@ -36,19 +37,22 @@ class Dive:
         self.dive_start = self.data.time.min()
         self.bottom_start = None
         self.td_bottom_duration = None
-        self.dive_skew = None
-        self.bottom_shape = None
-        self.dive_shape = None
         self.bottom_difference = None
         try:
             self.td_descent_duration = self.get_descent_duration()
             self.td_ascent_duration = self.get_ascent_duration()
             self.td_surface_duration = self.get_surface_duration()
             self.bottom_variance = self.set_bottom_variance()
-            self.dive_variance = self.set_dive_variance()
             self.descent_velocity = self.get_descent_velocity()
             self.ascent_velocity = self.get_ascent_velocity()
-            self.dive_shape = self.set_dive_shape()
+            self.total_duration = self.td_ascent_duration+self.td_bottom_duration+self.td_descent_duration+self.td_surface_duration
+            self.dive_duration = self.total_duration - self.td_surface_duration
+            self.dive_end = self.dive_start + self.total_duration
+            self.no_skew = 0
+            self.right_skew = 0
+            self.left_skew = 0
+            self.set_skew()
+            self.peaks = self.get_peaks()
 
         except Exception:
             self.sufficient=False
@@ -60,7 +64,6 @@ class Dive:
                 self.dive_variance = None
                 self.descent_velocity = None
                 self.ascent_velocity = None
-                self.dive_shape = DiveShape.SHALLOW
             else:
                 if not suppress_warning:
                     print("Warning: There is not enough information for this dive.\n"+str(self.data.time.min() )+ " to "+str(self.data.time.max()))
@@ -160,69 +163,29 @@ class Dive:
     # Calculate and set total dive variance
     def set_dive_variance(self):
         """
-        :return: the standard variance in depth during dive in meters
+        :return: the standard variancet in depth during dive in meters
         """
         dive_data = self.data[(self.data.time >= self.dive_start) & (self.data.time <= (self.bottom_start + self.td_bottom_duration + self.td_ascent_duration))]
         self.dive_variance = np.std(dive_data.depth)
         return self.dive_variance
 
-    def get_skew(self):
+    def set_skew(self):
         """
         :return: a string of either right or left
         """
         if self.td_ascent_duration > self.td_descent_duration:
-            return str(DiveShape.RIGHTSKEW)
-        if self.td_descent_duration > self.td_ascent_duration:
-            return str(DiveShape.LEFTSKEW)
-        return None
-
-    # Determine the dive shape
-    def set_dive_shape(self, v_threshold=0.1):
-        """
-        This fucntion sets the dive_shape, the bottom_shape, and the dive_skew
-
-        :param v_threshold: an indicator between 0 and 1 to determine the point where the dive chape is a V
-        :return: a dive shape enumeration
-        """
-        # Calculate the total duration of the dive
-        total_duration = self.td_descent_duration + self.td_bottom_duration + self.td_ascent_duration
-        if self.td_surface_duration > total_duration*4 and self.max_depth <= 2*self.surface_threshold:
-            self.dive_shape = str(DiveShape.SURFACE)
-            return self.dive_shape
-
-
-
-        self.dive_skew = self.get_skew()
-
-        # Determine if the the dive is either V-Shaped or a Square based on the bottom duration
-        if self.td_bottom_duration <= total_duration * v_threshold:
-            self.dive_shape = str(DiveShape.VSHAPE)
+            self.right_skew = 1
+        elif self.td_descent_duration > self.td_ascent_duration:
+            self.left_skew = 1
         else:
-            self.dive_shape = str(DiveShape.SQUARE)
+            self.no_skew = 1
 
-        # Determine if the dive a wiggle or flat dive based on the bottom variance
+    def get_peaks(self):
         peak_thres = (1 - (self.data.depth.mean() - (self.surface_threshold))/ self.data.depth.max())
         peaks = pk.indexes(self.data.depth*(-1), thres=min([0.2, peak_thres]), min_dist=max((10/self.data.time.diff().mean()),3))
+        self.peaks = len(peaks)
+        return self.peaks
 
-        bottom_data = self.data[(self.data.time >= self.bottom_start) & (
-            self.data.time <= (self.bottom_start + self.td_bottom_duration))]
-
-        if self.dive_shape != str(DiveShape.VSHAPE):
-            peak_count = len(bottom_data[bottom_data.index.isin(peaks)])
-        else:
-            # subtract one for the single peak always found in the ascent
-            peak_count = len(peaks) - 1
-
-        self.peaks = peak_count
-        if peak_count == 1:
-            self.dive_shape = str(DiveShape.WSHAPE)
-        elif peak_count > 1:
-            self.bottom_shape = str(DiveShape.WIGGLE)
-        elif self.dive_shape != str(DiveShape.VSHAPE):
-            self.bottom_shape = str(DiveShape.FLAT)
-
-        # Set the shape
-        return self.dive_shape
 
     # Return the dictionary of the object
     def to_dict(self):
@@ -242,7 +205,7 @@ class Dive:
         :return: a plotly graph showing the phases of the dive
         """
         # Set the data to plot the segments of the dive
-        if self.sufficient and self.dive_shape != DiveShape.SHALLOW:
+        if self.sufficient:
             # Get and set the descent data
             descent_data = self.data[self.data.time <= self.bottom_start]
             descent = go.Scatter(
@@ -283,34 +246,9 @@ class Dive:
                 name='Surface'
             )
 
-            # Set the layout and create the plot
-            skew_string = ""
-            if self.dive_skew is not None:
-                skew_string = self.dive_skew + ' skewed -'
-            if self.bottom_shape is None:
-                bottom_string = ""
-            else:
-                bottom_string = '- ' + self.bottom_shape
-
-            layout = go.Layout(title='Classification: {} {} {}'.format(skew_string, self.dive_shape, bottom_string),
+            layout = go.Layout(title='Dive starting at {}'.format(num2date(self.dive_start, units=units)),
                                xaxis=dict(title='Time'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
             plot_data = [descent, bottom, ascent, surface]
-            fig = go.Figure(data=plot_data, layout=layout)
-            return py.iplot(fig)
-
-        # Plot a shallow dive
-        elif self.dive_shape == DiveShape.SHALLOW:
-            dive= go.Scatter(
-                x=num2date(self.data.time.tolist(), units=units),
-                y=self.data.depth,
-                mode='lines+markers',
-                name='Dive'
-            )
-
-            layout = go.Layout(title=str(self.dive_shape),xaxis=dict(title='Time'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
-
-            plot_data = [dive]
-
             fig = go.Figure(data=plot_data, layout=layout)
             return py.iplot(fig)
         else:

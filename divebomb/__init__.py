@@ -7,7 +7,9 @@ from ipywidgets import interact, interactive, fixed, interact_manual, Layout
 import ipywidgets as widgets
 import plotly.offline as py
 import plotly.graph_objs as go
-from netCDF4 import date2num
+from netCDF4 import date2num, num2date, Dataset
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
 import math
 
 pd.options.mode.chained_assignment = None
@@ -31,6 +33,33 @@ def display_dive(index, data, starts,  surface_threshold):
     print(str(starts.loc[index, 'start_block']) + ":" + str(starts.loc[index, 'end_block']))
     dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']],  surface_threshold=surface_threshold)
     return dive_profile.plot()
+
+def cluster_dives(dives):
+
+    # Subset the data
+    dataset = dives.fillna(0)
+    dataset = dataset[['ascent_velocity',
+                      'descent_velocity',
+                      'bottom_variance',
+                      'td_ascent_duration',
+                      'td_bottom_duration',
+                      'td_descent_duration',
+                      'dive_duration',
+                      'peaks',
+                      'no_skew',
+                      'left_skew',
+                      'right_skew']]
+
+    # Scale all values
+    X = dataset.values
+    sc_X = StandardScaler()
+    X = sc_X.fit_transform(X)
+    kmeans = KMeans(n_clusters=5, init = 'k-means++', max_iter=300, n_init = 10)
+    y_kmeans = kmeans.fit_predict(X)
+    dataset['cluster'] = y_kmeans
+
+    clustered_dives = dives.join(dataset[['cluster']])
+    return clustered_dives
 
 
 def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, animal_length=3.0, ipython_display_mode=False):
@@ -70,7 +99,7 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
     data['depth_lead'] = data.depth_diff.shift(-1)
 
 
-    # Filter the data byt the next change in acceleration, the next change in depth, and the current dpeth to find the possible starting points
+    # Filter the data byt the next change in acceleration, the next change in depth, and the current depth to find the possible starting points
     starts = data[(data['accel_lead'] >= acceleration_threshold) & (data.depth_lead > 0) & (data[columns['depth']] <= surface_threshold)]
 
     # Store the starting index and end index for each of the dives
@@ -115,10 +144,20 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
         for dive in profiles:
             dives = dives.append(dive.to_dict(), ignore_index=True)
 
+
+        # Filter surfacing dives here
+        dives = cluster_dives(dives)
+
+        surfacing_events = dives[dives.max_depth <= dives.groupby('cluster').mean().max_depth.min()].reset_index(drop=True)
+        dives = dives[dives.max_depth > dives.groupby('cluster').mean().max_depth.min()].reset_index(drop=True).drop('cluster', axis=1)
+
+        dives = cluster_dives(dives)
+        # Cluster dives here
         # Create the folder and save the files
         if not os.path.exists(folder):
             os.makedirs(folder)
         data.to_csv(folder + '/original_dive_data.csv', index=False)
+        surfacing_events.to_csv(folder + '/surfacing_event_profiles.csv', index=False)
         dives.to_csv(folder + '/generated_dive_profiles.csv', index=False)
         starts.to_csv(folder + '/original_dive_data_starting_points.csv', index=False)
 
