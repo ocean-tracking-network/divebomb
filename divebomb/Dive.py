@@ -5,7 +5,6 @@ import plotly.offline as py
 import plotly.graph_objs as go
 import copy
 import sys
-from divebomb.DiveShape import DiveShape
 
 from netCDF4 import Dataset, num2date, date2num
 import peakutils as pk

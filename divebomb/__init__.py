@@ -35,7 +35,12 @@ def display_dive(index, data, starts,  surface_threshold):
     return dive_profile.plot()
 
 def cluster_dives(dives, n=5):
+    """
 
+    :param dives:
+    :param n:
+
+    """
     # Subset the data
     dataset = dives.fillna(0)
     dataset = dataset[['ascent_velocity',
@@ -62,6 +67,14 @@ def cluster_dives(dives, n=5):
     return clustered_dives
 
 def export_dives(dives, data, folder, is_surface_events=False):
+    """
+
+    :param dives: a Pandas DataFrame of dive profiles to export
+    :param data: a Pandas dataframe of the original dive data
+    :param folder: a string indicating the parent folder for the files and sub folders
+    :param is_surface_events: a boolean indicating if the dive profiles are entirely surface events
+
+    """
     if is_surface_events:
         os.makedirs(folder+'/surfacing_events')
     for index, dive in dives.iterrows():
@@ -178,10 +191,14 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
         dives = cluster_dives(dives, n=n_clusters)
 
         surfacing_events = dives[dives.max_depth <= dives.groupby('cluster').mean().max_depth.min()].reset_index(drop=True)
+
+        #recluster the rest of the dives
         dives = dives[dives.max_depth > dives.groupby('cluster').mean().max_depth.min()].reset_index(drop=True).drop('cluster', axis=1)
 
         dives = cluster_dives(dives, n=n_clusters)
 
+
+        # Export the dives to netCDF
         if os.path.exists(folder):
             shutil.rmtree(folder)
         os.makedirs(folder)
