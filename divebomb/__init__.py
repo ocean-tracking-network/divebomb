@@ -1,6 +1,6 @@
 import pandas as pd
 from divebomb.Dive import Dive
-import os
+import os, shutil
 import numpy as np
 import __future__
 from ipywidgets import interact, interactive, fixed, interact_manual, Layout
@@ -34,7 +34,7 @@ def display_dive(index, data, starts,  surface_threshold):
     dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']],  surface_threshold=surface_threshold)
     return dive_profile.plot()
 
-def cluster_dives(dives):
+def cluster_dives(dives, n=5):
 
     # Subset the data
     dataset = dives.fillna(0)
@@ -54,15 +54,44 @@ def cluster_dives(dives):
     X = dataset.values
     sc_X = StandardScaler()
     X = sc_X.fit_transform(X)
-    kmeans = KMeans(n_clusters=5, init = 'k-means++', max_iter=300, n_init = 10)
+    kmeans = KMeans(n_clusters=n, init = 'k-means++', max_iter=300, n_init = 10)
     y_kmeans = kmeans.fit_predict(X)
     dataset['cluster'] = y_kmeans
 
     clustered_dives = dives.join(dataset[['cluster']])
     return clustered_dives
 
+def export_dives(dives, data, folder, is_surface_events=False):
+    if is_surface_events:
+        os.makedirs(folder+'/surfacing_events')
+    for index, dive in dives.iterrows():
+        if is_surface_events:
+            filename = '%s/surfacing_events/surface_event_%05d.nc' % (folder, (index+1))
+        else:
+            filename = '%s/cluster_%d/dive_%05d.nc' % (folder,dive.cluster,(index+1))
+        rootgrp = Dataset(filename, 'w')
+        rootgrp.setncattr('dive_id',index+1)
+        rootgrp.setncattr('time_units', units)
+        for key,value in dive.to_dict().items():
+            try:
+                if value.is_integer():
+                    rootgrp.setncattr(key,int(value))
+                else:
+                    rootgrp.setncattr(key,value)
+            except TypeError:
+                rootgrp.setncattr(key, str(value))
+        rootgrp.createDimension('time', None)
 
-def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, animal_length=3.0, ipython_display_mode=False):
+        time = rootgrp.createVariable("time","f8",("time",),zlib=True)
+        time.units = units
+        depth = rootgrp.createVariable("depth","f8",("time",),zlib=True)
+
+        time[:] = data[rootgrp.dive_start:rootgrp.dive_end].time.tolist()
+        depth[:] = data[rootgrp.dive_start:rootgrp.dive_end].depth.tolist()
+
+        rootgrp.close()
+
+def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, animal_length=3.0, n_clusters=5 ,ipython_display_mode=False):
     """
     profiles the dives
 
@@ -146,20 +175,29 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
 
 
         # Filter surfacing dives here
-        dives = cluster_dives(dives)
+        dives = cluster_dives(dives, n=n_clusters)
 
         surfacing_events = dives[dives.max_depth <= dives.groupby('cluster').mean().max_depth.min()].reset_index(drop=True)
         dives = dives[dives.max_depth > dives.groupby('cluster').mean().max_depth.min()].reset_index(drop=True).drop('cluster', axis=1)
 
-        dives = cluster_dives(dives)
-        # Cluster dives here
-        # Create the folder and save the files
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-        data.to_csv(folder + '/original_dive_data.csv', index=False)
-        surfacing_events.to_csv(folder + '/surfacing_event_profiles.csv', index=False)
-        dives.to_csv(folder + '/generated_dive_profiles.csv', index=False)
-        starts.to_csv(folder + '/original_dive_data_starting_points.csv', index=False)
+        dives = cluster_dives(dives, n=n_clusters)
+
+        if os.path.exists(folder):
+            shutil.rmtree(folder)
+        os.makedirs(folder)
+
+        for cluster in range(0, n_clusters):
+            os.makedirs(folder+'/cluster_'+str(cluster))
+
+        data.set_index('time',inplace=True, drop=False)
+
+        dives.dive_start = dives.dive_start.astype(int)
+        dives.dive_end = dives.dive_end.astype(int)
+        data.time = data.time.astype(int)
+
+
+        export_dives(dives, data, folder)
+        export_dives(surfacing_events, data, folder, is_surface_events=True)
 
         # Return the three datasets back to the user
-        return {'data': data, 'dives': dives, 'starts': starts}
+        return {'data': data, 'dives': dives, 'surfacing_events': surfacing_events}
