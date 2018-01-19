@@ -8,8 +8,10 @@ import ipywidgets as widgets
 import plotly.offline as py
 import plotly.graph_objs as go
 from netCDF4 import date2num, num2date, Dataset
-from sklearn.cluster import KMeans
+from sklearn.cluster import AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.mixture import GaussianMixture
 import math
 
 pd.options.mode.chained_assignment = None
@@ -59,12 +61,33 @@ def cluster_dives(dives, n=5):
     X = dataset.values
     sc_X = StandardScaler()
     X = sc_X.fit_transform(X)
-    kmeans = KMeans(n_clusters=n, init = 'k-means++', max_iter=300, n_init = 10)
-    y_kmeans = kmeans.fit_predict(X)
-    dataset['cluster'] = y_kmeans
+
+    # Apply principle component analysis
+    pca = PCA(n_components = 8)
+    X = pca.fit_transform(X)
+
+    loadings = pd.DataFrame(pca.components_).T
+    loadings.reset_index(inplace=True)
+    loadings.columns=['component','PC_1', 'PC_2', 'PC_3', 'PC_4', 'PC_5', 'PC_6', 'PC_7', 'PC_8']
+    loadings['component'] = dataset.columns
+
+
+    pca_output_matrix = pd.DataFrame(X)
+    pca_output_matrix.columns = ['PC_1', 'PC_2', 'PC_3', 'PC_4', 'PC_5', 'PC_6', 'PC_7', 'PC_8']
+
+    n_components = np.arange(1, 11)
+    models = [GaussianMixture(n, covariance_type='full', random_state=0).fit(X) for n in n_components]
+
+    bics = y = [m.bic(X) for m in models]
+    diffs = np.diff(bics).tolist()
+    n_clusters = (diffs.index(max(diffs[4:])))+1
+    # Apply Kmeans clustering
+    hc = AgglomerativeClustering(n_clusters = n_clusters, affinity = 'euclidean', linkage = 'ward')
+    y_hc = hc.fit_predict(X)
+    dataset['cluster'] = y_hc
 
     clustered_dives = dives.join(dataset[['cluster']])
-    return clustered_dives
+    return clustered_dives, loadings ,pca_output_matrix
 
 def export_dives(dives, data, folder, is_surface_events=False):
     """
@@ -84,6 +107,7 @@ def export_dives(dives, data, folder, is_surface_events=False):
             filename = '%s/cluster_%d/dive_%05d.nc' % (folder,dive.cluster,(index+1))
         rootgrp = Dataset(filename, 'w')
         rootgrp.setncattr('dive_id',index+1)
+        rootgrp.setncattr('is_surface_event', int(is_surface_events))
         rootgrp.setncattr('time_units', units)
         for key,value in dive.to_dict().items():
             try:
@@ -104,7 +128,7 @@ def export_dives(dives, data, folder, is_surface_events=False):
 
         rootgrp.close()
 
-def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, animal_length=3.0, n_clusters=5 ,ipython_display_mode=False):
+def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, animal_length=3.0, ipython_display_mode=False):
     """
     profiles the dives
 
@@ -188,14 +212,7 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
 
 
         # Filter surfacing dives here
-        dives = cluster_dives(dives, n=n_clusters)
-
-        surfacing_events = dives[dives.max_depth <= dives.groupby('cluster').mean().max_depth.min()].reset_index(drop=True)
-
-        #recluster the rest of the dives
-        dives = dives[dives.max_depth > dives.groupby('cluster').mean().max_depth.min()].reset_index(drop=True).drop('cluster', axis=1)
-
-        dives = cluster_dives(dives, n=n_clusters)
+        dives, loadings, pca_output_matrix = cluster_dives(dives)
 
 
         # Export the dives to netCDF
@@ -203,18 +220,35 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
             shutil.rmtree(folder)
         os.makedirs(folder)
 
-        for cluster in range(0, n_clusters):
+        for cluster in dives.cluster.unique():
             os.makedirs(folder+'/cluster_'+str(cluster))
 
         data.set_index('time',inplace=True, drop=False)
-
         dives.dive_start = dives.dive_start.astype(int)
         dives.dive_end = dives.dive_end.astype(int)
         data.time = data.time.astype(int)
+        export_dives(dives ,data, folder)
 
+        pca_group = Dataset(folder+'/pca_matrices_data.nc', 'w')
+        pca_loadings = pca_group.createGroup('pca_loadings')
+        pca_output = pca_group.createGroup('pca_output')
 
-        export_dives(dives, data, folder)
-        export_dives(surfacing_events, data, folder, is_surface_events=True)
+        pca_group.createDimension('order', None)
+
+        str_max = (loadings.component.str.len()).max()
+        components = pca_loadings.createVariable("component",str,('order',), zlib=True)
+        components = np.array(loadings.component.tolist(), 'S'+str(int(str_max)))
+        pc={}
+        for column in loadings.iloc[:, 1:].columns:
+            pc[column] = pca_loadings.createVariable(column,'f8',('order',),zlib=True)
+            pc[column][:] = loadings[column].tolist()
+
+        for column in pca_output_matrix.columns:
+            pc[column] = pca_output.createVariable(column,'f8',('order',),zlib=True)
+            pc[column][:] = loadings[column].tolist()
+
+        pca_group.close()
+
 
         # Return the three datasets back to the user
-        return {'data': data, 'dives': dives, 'surfacing_events': surfacing_events}
+        return {'data': data, 'dives': dives}
