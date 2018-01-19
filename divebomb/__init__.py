@@ -77,7 +77,6 @@ def cluster_dives(dives, n=5):
 
     n_components = np.arange(1, 11)
     models = [GaussianMixture(n, covariance_type='full', random_state=0).fit(X) for n in n_components]
-
     bics = y = [m.bic(X) for m in models]
     diffs = np.diff(bics).tolist()
     n_clusters = (diffs.index(max(diffs[4:])))+1
