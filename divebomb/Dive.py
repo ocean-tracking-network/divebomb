@@ -34,6 +34,7 @@ class Dive:
                 self.data.drop(v, axis=1)
         self.max_depth = self.data.depth.max()
         self.dive_start = self.data.time.min()
+        self.dive_end = self.data.time.max()
         self.bottom_start = None
         self.td_bottom_duration = None
         self.bottom_difference = None
@@ -46,7 +47,6 @@ class Dive:
             self.ascent_velocity = self.get_ascent_velocity()
             self.total_duration = self.td_ascent_duration+self.td_bottom_duration+self.td_descent_duration+self.td_surface_duration
             self.dive_duration = self.total_duration - self.td_surface_duration
-            self.dive_end = self.dive_start + self.total_duration
             self.no_skew = 0
             self.right_skew = 0
             self.left_skew = 0
@@ -132,7 +132,8 @@ class Dive:
         :return: the descent velocity in m/s
         """
         descent_data = self.data[self.data.time <= self.bottom_start]
-        self.descent_velocity = (descent_data.depth.max() - descent_data.depth.min()) / self.td_descent_duration
+        if self.td_descent_duration > 0:
+            self.descent_velocity = (descent_data.depth.max() - descent_data.depth.min()) / self.td_descent_duration
         return self.descent_velocity
 
     # Calculate the ascent velocity Delta Depth/Delta Time
