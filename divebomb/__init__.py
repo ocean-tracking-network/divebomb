@@ -1,3 +1,13 @@
+
+__author__ = "Alex Nunes"
+__credits__ = ["Alex Nunes", "Fran Broell"]
+__license__ = "GPL"
+__version__ = "0.1.0"
+__maintainer__ = "Alex Nunes"
+__email__ = "anunes@dal.ca"
+__status__ = "Development"
+
+
 import pandas as pd
 from divebomb.Dive import Dive
 import os, shutil
@@ -36,11 +46,17 @@ def display_dive(index, data, starts,  surface_threshold):
     dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']],  surface_threshold=surface_threshold)
     return dive_profile.plot()
 
-def cluster_dives(dives, n=5):
+def cluster_dives(dives):
     """
+    This function takes advantage of sklearn and reduces the dimensionality
+    with Principal Component Analysis, finds the optimal number of n_clusters
+    using Gaussian Mixed Models and the Bayesion Information Criterion, then
+    uses Agglomerative Clustering on the dives profiles to group them.
 
-    :param dives:
-    :param n:
+    :param dives: a pandas DataFrame of dive attributes
+
+    :return: the clustered dives, the PCA loadings matrix,
+             and the PCA output matrix
 
     """
     # Subset the data
@@ -66,21 +82,24 @@ def cluster_dives(dives, n=5):
     pca = PCA(n_components = 8)
     X = pca.fit_transform(X)
 
+    # Get the loadings matrix
     loadings = pd.DataFrame(pca.components_).T
     loadings.reset_index(inplace=True)
     loadings.columns=['component','PC_1', 'PC_2', 'PC_3', 'PC_4', 'PC_5', 'PC_6', 'PC_7', 'PC_8']
     loadings['component'] = dataset.columns
 
-
+    # Get the PCA output matrix
     pca_output_matrix = pd.DataFrame(X)
     pca_output_matrix.columns = ['PC_1', 'PC_2', 'PC_3', 'PC_4', 'PC_5', 'PC_6', 'PC_7', 'PC_8']
 
+    # Find the optimal number of clusters
     n_components = np.arange(1, 11)
     models = [GaussianMixture(n, covariance_type='full', random_state=0).fit(X) for n in n_components]
     bics = y = [m.bic(X) for m in models]
     diffs = np.diff(bics).tolist()
-    n_clusters = (diffs.index(max(diffs[4:])))+1
-    # Apply Kmeans clustering
+    n_clusters = (diffs.index(max(diffs[4:])))
+
+    # Apply Agglomerative clustering
     hc = AgglomerativeClustering(n_clusters = n_clusters, affinity = 'euclidean', linkage = 'ward')
     y_hc = hc.fit_predict(X)
     dataset['cluster'] = y_hc
@@ -90,6 +109,7 @@ def cluster_dives(dives, n=5):
 
 def export_dives(dives, data, folder, is_surface_events=False):
     """
+    This function exports each dive to its own netCDF file grouped by cluster
 
     :param dives: a Pandas DataFrame of dive profiles to export
     :param data: a Pandas dataframe of the original dive data
@@ -97,13 +117,8 @@ def export_dives(dives, data, folder, is_surface_events=False):
     :param is_surface_events: a boolean indicating if the dive profiles are entirely surface events
 
     """
-    if is_surface_events:
-        os.makedirs(folder+'/surfacing_events')
     for index, dive in dives.iterrows():
-        if is_surface_events:
-            filename = '%s/surfacing_events/surface_event_%05d.nc' % (folder, (index+1))
-        else:
-            filename = '%s/cluster_%d/dive_%05d.nc' % (folder,dive.cluster,(index+1))
+        filename = '%s/cluster_%d/dive_%05d.nc' % (folder,dive.cluster,(index+1))
         rootgrp = Dataset(filename, 'w')
         rootgrp.setncattr('dive_id',index+1)
         rootgrp.setncattr('is_surface_event', int(is_surface_events))
@@ -222,12 +237,14 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
         for cluster in dives.cluster.unique():
             os.makedirs(folder+'/cluster_'+str(cluster))
 
+        # export the dives
         data.set_index('time',inplace=True, drop=False)
         dives.dive_start = dives.dive_start.astype(int)
         dives.dive_end = dives.dive_end.astype(int)
         data.time = data.time.astype(int)
         export_dives(dives ,data, folder)
 
+        # Export the PCA Matrices
         pca_group = Dataset(folder+'/pca_matrices_data.nc', 'w')
         pca_loadings = pca_group.createGroup('pca_loadings')
         pca_output = pca_group.createGroup('pca_output')

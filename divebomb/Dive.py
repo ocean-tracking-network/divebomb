@@ -181,11 +181,13 @@ class Dive:
             self.no_skew = 1
 
     def get_peaks(self):
+        """
+        :return: number of peaks found within a dive
+        """
         peak_thres = (1 - (self.data.depth.mean() - (self.surface_threshold))/ self.data.depth.max())
         peaks = pk.indexes(self.data.depth*(-1), thres=min([0.2, peak_thres]), min_dist=max((10/self.data.time.diff().mean()),3))
         self.peaks = len(peaks)
         return self.peaks
-
 
     # Return the dictionary of the object
     def to_dict(self):

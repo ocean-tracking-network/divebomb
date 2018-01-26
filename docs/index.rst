@@ -52,7 +52,7 @@ cluster the dives, but show them in ascending order by time in an iPython Notebo
 .. code:: python
 
   # Display
-  animal_length = animal_length
+  animal_length = 3 # in meters
   profile_dives(df, ipython_display_mode=True, animal_length=animal_length)
 
   # Store in files
