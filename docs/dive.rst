@@ -15,7 +15,7 @@ Dive
     get_ascent_velocity,
     set_bottom_variance,
     set_dive_variance,
-    get_skew,
-    set_dive_shape,
+    set_skew,
+    get_peaks,
     to_dict,
     plot

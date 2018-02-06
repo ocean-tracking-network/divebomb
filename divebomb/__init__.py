@@ -1,13 +1,27 @@
+
+__author__ = "Alex Nunes"
+__credits__ = ["Alex Nunes", "Fran Broell"]
+__license__ = "GPL"
+__version__ = "0.1.0"
+__maintainer__ = "Alex Nunes"
+__email__ = "anunes@dal.ca"
+__status__ = "Development"
+
+
 import pandas as pd
 from divebomb.Dive import Dive
-import os
+import os, shutil
 import numpy as np
 import __future__
 from ipywidgets import interact, interactive, fixed, interact_manual, Layout
 import ipywidgets as widgets
 import plotly.offline as py
 import plotly.graph_objs as go
-from netCDF4 import date2num
+from netCDF4 import date2num, num2date, Dataset
+from sklearn.cluster import AgglomerativeClustering
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.mixture import GaussianMixture
 import math
 
 pd.options.mode.chained_assignment = None
@@ -32,6 +46,101 @@ def display_dive(index, data, starts,  surface_threshold):
     dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']],  surface_threshold=surface_threshold)
     return dive_profile.plot()
 
+def cluster_dives(dives):
+    """
+    This function takes advantage of sklearn and reduces the dimensionality
+    with Principal Component Analysis, finds the optimal number of n_clusters
+    using Gaussian Mixed Models and the Bayesion Information Criterion, then
+    uses Agglomerative Clustering on the dives profiles to group them.
+
+    :param dives: a pandas DataFrame of dive attributes
+
+    :return: the clustered dives, the PCA loadings matrix,
+             and the PCA output matrix
+
+    """
+    # Subset the data
+    dataset = dives.fillna(0)
+    dataset = dataset[['ascent_velocity',
+                      'descent_velocity',
+                      'bottom_variance',
+                      'td_ascent_duration',
+                      'td_bottom_duration',
+                      'td_descent_duration',
+                      'dive_duration',
+                      'peaks',
+                      'no_skew',
+                      'left_skew',
+                      'right_skew']]
+
+    # Scale all values
+    X = dataset.values
+    sc_X = StandardScaler()
+    X = sc_X.fit_transform(X)
+
+    # Apply principle component analysis
+    pca = PCA(n_components = 8)
+    X = pca.fit_transform(X)
+
+    # Get the loadings matrix
+    loadings = pd.DataFrame(pca.components_).T
+    loadings.reset_index(inplace=True)
+    loadings.columns=['component','PC_1', 'PC_2', 'PC_3', 'PC_4', 'PC_5', 'PC_6', 'PC_7', 'PC_8']
+    loadings['component'] = dataset.columns
+
+    # Get the PCA output matrix
+    pca_output_matrix = pd.DataFrame(X)
+    pca_output_matrix.columns = ['PC_1', 'PC_2', 'PC_3', 'PC_4', 'PC_5', 'PC_6', 'PC_7', 'PC_8']
+
+    # Find the optimal number of clusters
+    n_components = np.arange(1, 11)
+    models = [GaussianMixture(n, covariance_type='full', random_state=0).fit(X) for n in n_components]
+    bics = y = [m.bic(X) for m in models]
+    diffs = np.diff(bics).tolist()
+    n_clusters = (diffs.index(max(diffs[4:])))
+
+    # Apply Agglomerative clustering
+    hc = AgglomerativeClustering(n_clusters = n_clusters, affinity = 'euclidean', linkage = 'ward')
+    y_hc = hc.fit_predict(X)
+    dataset['cluster'] = y_hc
+
+    clustered_dives = dives.join(dataset[['cluster']])
+    return clustered_dives, loadings ,pca_output_matrix
+
+def export_dives(dives, data, folder, is_surface_events=False):
+    """
+    This function exports each dive to its own netCDF file grouped by cluster
+
+    :param dives: a Pandas DataFrame of dive profiles to export
+    :param data: a Pandas dataframe of the original dive data
+    :param folder: a string indicating the parent folder for the files and sub folders
+    :param is_surface_events: a boolean indicating if the dive profiles are entirely surface events
+
+    """
+    for index, dive in dives.iterrows():
+        filename = '%s/cluster_%d/dive_%05d.nc' % (folder,dive.cluster,(index+1))
+        rootgrp = Dataset(filename, 'w')
+        rootgrp.setncattr('dive_id',index+1)
+        rootgrp.setncattr('is_surface_event', int(is_surface_events))
+        rootgrp.setncattr('time_units', units)
+        for key,value in dive.to_dict().items():
+            try:
+                if value.is_integer():
+                    rootgrp.setncattr(key,int(value))
+                else:
+                    rootgrp.setncattr(key,value)
+            except TypeError:
+                rootgrp.setncattr(key, str(value))
+        rootgrp.createDimension('time', None)
+
+        time = rootgrp.createVariable("time","f8",("time",),zlib=True)
+        time.units = units
+        depth = rootgrp.createVariable("depth","f8",("time",),zlib=True)
+
+        time[:] = data[rootgrp.dive_start:rootgrp.dive_end].time.tolist()
+        depth[:] = data[rootgrp.dive_start:rootgrp.dive_end].depth.tolist()
+
+        rootgrp.close()
 
 def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, animal_length=3.0, ipython_display_mode=False):
     """
@@ -70,7 +179,7 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
     data['depth_lead'] = data.depth_diff.shift(-1)
 
 
-    # Filter the data byt the next change in acceleration, the next change in depth, and the current dpeth to find the possible starting points
+    # Filter the data byt the next change in acceleration, the next change in depth, and the current depth to find the possible starting points
     starts = data[(data['accel_lead'] >= acceleration_threshold) & (data.depth_lead > 0) & (data[columns['depth']] <= surface_threshold)]
 
     # Store the starting index and end index for each of the dives
@@ -115,12 +224,47 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
         for dive in profiles:
             dives = dives.append(dive.to_dict(), ignore_index=True)
 
-        # Create the folder and save the files
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-        data.to_csv(folder + '/original_dive_data.csv', index=False)
-        dives.to_csv(folder + '/generated_dive_profiles.csv', index=False)
-        starts.to_csv(folder + '/original_dive_data_starting_points.csv', index=False)
+
+        # Filter surfacing dives here
+        dives, loadings, pca_output_matrix = cluster_dives(dives)
+
+
+        # Export the dives to netCDF
+        if os.path.exists(folder):
+            shutil.rmtree(folder)
+        os.makedirs(folder)
+
+        for cluster in dives.cluster.unique():
+            os.makedirs(folder+'/cluster_'+str(cluster))
+
+        # export the dives
+        data.set_index('time',inplace=True, drop=False)
+        dives.dive_start = dives.dive_start.astype(int)
+        dives.dive_end = dives.dive_end.astype(int)
+        data.time = data.time.astype(int)
+        export_dives(dives ,data, folder)
+
+        # Export the PCA Matrices
+        pca_group = Dataset(folder+'/pca_matrices_data.nc', 'w')
+        pca_loadings = pca_group.createGroup('pca_loadings')
+        pca_output = pca_group.createGroup('pca_output')
+
+        pca_group.createDimension('order', None)
+
+        str_max = (loadings.component.str.len()).max()
+        components = pca_loadings.createVariable("component",str,('order',), zlib=True)
+        components = np.array(loadings.component.tolist(), 'S'+str(int(str_max)))
+        pc={}
+        for column in loadings.iloc[:, 1:].columns:
+            pc[column] = pca_loadings.createVariable(column,'f8',('order',),zlib=True)
+            pc[column][:] = loadings[column].tolist()
+
+        for column in pca_output_matrix.columns:
+            pc[column] = pca_output.createVariable(column,'f8',('order',),zlib=True)
+            pc[column][:] = loadings[column].tolist()
+
+        pca_group.close()
+
 
         # Return the three datasets back to the user
-        return {'data': data, 'dives': dives, 'starts': starts}
+        return {'data': data, 'dives': dives}

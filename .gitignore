@@ -5,3 +5,5 @@
 /dist/
 /*.egg-info
 docs/_build
+conda-dist
+*__pycache__

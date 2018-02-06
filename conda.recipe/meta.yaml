@@ -1,6 +1,6 @@
 package:
   name: divebomb
-  version: "0.0.6"
+  version: "0.1.0"
 
 source:
   git_rev: master
@@ -23,6 +23,7 @@ requirements:
     - sphinx
     - netcdf4
     - peakutils
+    - sklearn
 
   run:
     - python {{ python }}
@@ -33,6 +34,7 @@ requirements:
     - plotly
     - netcdf4
     - peakutils
+    - sklearn
 
 
 about:
