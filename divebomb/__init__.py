@@ -22,6 +22,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.mixture import GaussianMixture
+import xarray as xr
 import math
 
 pd.options.mode.chained_assignment = None
@@ -270,8 +271,12 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
         for column in pca_output_matrix.columns:
             pc[column] = pca_output.createVariable(column,'f8',('order',),zlib=True)
             pc[column][:] = loadings[column].tolist()
-
         pca_group.close()
+
+        # Write an overall summary netcdf
+        xarray_data = xr.Dataset(dives)
+        xarray_data.to_netcdf(os.path.join(folder, "all_profiled_dives.nc"), mode='w')
+        xarray_data.close()
 
 
         # Return the three datasets back to the user
