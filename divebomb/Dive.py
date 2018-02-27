@@ -13,28 +13,30 @@ units = 'seconds since 1970-01-01'
 
 
 class Dive:
+    """
+    :ivar max_depth: the max depth in the dive
+    :ivar dive_start: the timestamp of the first point in the dive
+    :ivar dive_end: the timestamp of the last point in the dive
+    :ivar bottom_start: the timestamp of the first point in the dive when the animal is at depth
+    :ivar td_bottom_duration: a timedelta object containing the duration of the time the animal is at depth in seconds
+    :ivar td_descent_duration: a timedelta object containing the duration of the time the animal is descending in seconds
+    :ivar td_ascent_duration: a timedelta object containing the duration of the time the animal is ascending in seconds
+    :ivar td_surface_duration: a timedelta object containing the duration of the time the animal is at the surface in seconds
+    :ivar bottom_variance: the variance of the depth while the animal is at the bottom of the dive
+    :ivar dive_variance: the variance of the depth for the entire dive.
+    :ivar descent_velocity: the average velocity of the descent
+    :ivar ascent_velocity: the average velocity of the descent
+    :ivar peaks: the number of peaks found in the dive profile
+    :ivar left_skew: a boolean of 1 or 0 indicating if the dive is left skewed
+    :ivar right_skew: a boolean of 1 or 0 indicating if the dive is right skewed
+    :ivar no_skew: a boolean of 1 or 0 indicating if the dive is not skewed
+
+    """
     def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}, surface_threshold=3.0, suppress_warning=False):
         """
         :param data: the time and depth values for the dive
         :param surface_threshold: minmum depth to constitute a dive
         :param supress_warning: indicator to ignore dives dives with little data
-
-        :ivar max_depth: the max depth in the dive
-        :ivar dive_start: the timestamp of the first point in the dive
-        :ivar dive_end: the timestamp of the last point in the dive
-        :ivar bottom_start: the timestamp of the first point in the dive when the animal is at depth
-        :ivar td_bottom_duration: a timedelta object containing the duration of the time the animal is at depth in seconds
-        :ivar td_descent_duration: a timedelta object containing the duration of the time the animal is descending in seconds
-        :ivar td_ascent_duration: a timedelta object containing the duration of the time the animal is ascending in seconds
-        :ivar td_surface_duration: a timedelta object containing the duration of the time the animal is at the surface in seconds
-        :ivar bottom_variance: the variance of the depth while the animal is at the bottom of the dive
-        :ivar dive_variance: the variance of the depth for the entire dive.
-        :ivar descent_velocity: the average velocity of the descent
-        :ivar ascent_velocity: the average velocity of the descent
-        :ivar peaks: the number of peaks found in the dive profile
-        :ivar left_skew: a boolean of 1 or 0 indicating if the dive is left skewed
-        :ivar right_skew: a boolean of 1 or 0 indicating if the dive is right skewed
-        :ivar no_skew: a boolean of 1 or 0 indicating if the dive is not skewed
 
         """
 
