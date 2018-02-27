@@ -1,12 +1,10 @@
 .. _dive_page:
 
 
-Dive
-----
+Dive Class
+----------
 
-.. automodule:: Dive
-
-.. autoclass:: Dive
+.. autoclass:: Dive.Dive
    :members: __init__,
     get_descent_duration,
     get_ascent_duration,
