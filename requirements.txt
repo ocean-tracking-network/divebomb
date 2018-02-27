@@ -6,4 +6,3 @@ peakutils
 sklearn
 datetime
 ipywidgets
-shutil
