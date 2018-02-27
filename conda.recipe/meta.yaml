@@ -35,6 +35,10 @@ requirements:
     - netcdf4
     - peakutils
     - sklearn
+    
+test:
+  imports:
+    - resonate
 
 
 about:

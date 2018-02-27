@@ -5,4 +5,5 @@ numpy
 peakutils
 sklearn
 datetime
+netCDF4
 ipywidgets
