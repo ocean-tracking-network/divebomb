@@ -85,12 +85,20 @@ def cluster_dives(dives):
     # Get the loadings matrix
     loadings = pd.DataFrame(pca.components_).T
     loadings.reset_index(inplace=True)
-    loadings.columns=['component','PC_1', 'PC_2', 'PC_3', 'PC_4', 'PC_5', 'PC_6', 'PC_7', 'PC_8']
+    column_heading = ['component']
+    for column in loadings.columns:
+        if column != 'index':
+            column_heading.append('PC_'+str(column))
+    loadings.columns=column_heading
     loadings['component'] = dataset.columns
 
     # Get the PCA output matrix
     pca_output_matrix = pd.DataFrame(X)
-    pca_output_matrix.columns = ['PC_1', 'PC_2', 'PC_3', 'PC_4', 'PC_5', 'PC_6', 'PC_7', 'PC_8']
+    column_heading = []
+    for column in pca_output_matrix.columns:
+        if column != 'index':
+            column_heading.append('PC_'+str(column))
+    pca_output_matrix.columns = column_heading
 
     # Find the optimal number of clusters
     n_components = np.arange(1, 11)
