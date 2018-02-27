@@ -1,0 +1,9 @@
+pandas
+plotly
+sphinx
+numpy
+peakutils
+sklearn
+datetime
+ipywidgets
+shutil
