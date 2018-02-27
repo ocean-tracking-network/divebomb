@@ -4,7 +4,9 @@
 Dive Class
 ----------
 
-.. autoclass:: Dive.Dive
+.. currentmodule:: divebomb.Dive
+
+.. autoclass:: Dive
    :members: __init__,
     get_descent_duration,
     get_ascent_duration,

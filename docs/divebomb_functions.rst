@@ -3,5 +3,7 @@
 Divebomb Functions
 ------------------
 
+.. currentmodule:: divebomb
+
 .. automodule:: divebomb
    :members:

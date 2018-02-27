@@ -1,5 +1,6 @@
 #!/bin/bash
 python setup.py sdist upload -r testpypi;
+python setup.py sdist upload -r pypi;
 rm -f ~/anaconda3/conda-bld/osx-64/divebomb*;
 conda-build conda.recipe --python=3.5 &&
 rm -rf conda-dist &&
