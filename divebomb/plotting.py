@@ -3,6 +3,8 @@ import plotly.graph_objs as go
 from netCDF4 import Dataset, num2date
 import pandas as pd
 import os
+import xarray as xr
+import colorlover as cl
 
 def plot_from_nc(folder, cluster, dive_id, ipython_display=True, filename=None):
     dive_file = '%s/cluster_%d/dive_%05d.nc' % (folder,cluster,dive_id)
@@ -57,3 +59,67 @@ def plot_from_nc(folder, cluster, dive_id, ipython_display=True, filename=None):
     plot_data = [descent, bottom, ascent, surface]
     fig = go.Figure(data=plot_data, layout=layout)
     return py.iplot(fig)
+
+
+folder = '/Users/alexnunes/Desktop/narwhal_analysis/results/nw3_processed_mbl_dive_profiles'
+dataset = xr.open_dataset(os.path.join(folder, 'all_profiled_dives.nc'))
+df = dataset.to_dataframe().reset_index(drop=True)
+df.sort_values('dive_start', inplace=True)
+df['dive_id'] = df.index+1
+
+
+dive_data = pd.DataFrame()
+for group, data in df.groupby('cluster'):
+    for index, row in data.iterrows():
+        dive_file = '%s/cluster_%d/dive_%05d.nc' % (folder,row.cluster,row.dive_id)
+        rootgrp= Dataset(dive_file)
+        single_dive_data = pd.DataFrame()
+        single_dive_data['time'] = rootgrp.variables['time'][:]
+        single_dive_data['time'] = single_dive_data['time'] - single_dive_data['time'].min()
+        single_dive_data['depth'] = rootgrp.variables['depth'][:]
+        single_dive_data['cluster'] = rootgrp.cluster
+        dive_data = dive_data.append(single_dive_data)
+        rootgrp.close()
+aggregated_data = dive_data.groupby(['time', 'cluster']).agg(['min','mean','max', 'median']).reset_index(level=[0,1])
+
+plot_data = []
+colors = cl.scales[str(len(aggregated_data.cluster.unique()))]['qual']['Paired']
+
+for cluster in aggregated_data.cluster.unique():
+
+    line_trace = go.Scatter(
+        x=aggregated_data[aggregated_data.cluster == cluster]['time'],
+        y=aggregated_data[aggregated_data.cluster == cluster]['depth']['min'],
+        mode='lines',
+        legendgroup= 'cluster'+str(cluster),
+        name='Cluster '+str(cluster)+ " Min Depth",
+        line=go.Line(color=colors[cluster], dash = 'dash'),
+    )
+    plot_data.append(line_trace)
+
+    fill_trace = go.Scatter(
+        x=aggregated_data[aggregated_data.cluster == cluster]['time'],
+        y=aggregated_data[aggregated_data.cluster == cluster]['depth']['max'],
+        fill='tonexty',
+        legendgroup= 'cluster'+str(cluster),
+        fillcolor=colors[cluster].replace(')', ',0.3)').replace('rgb', 'rgba'),
+        name='Cluster '+str(cluster) +' Possible Range',
+        line=go.Line(color='transparent'),
+    )
+    plot_data.append(fill_trace)
+
+    line_trace = go.Scatter(
+        x=aggregated_data[aggregated_data.cluster == cluster]['time'],
+        y=aggregated_data[aggregated_data.cluster == cluster]['depth']['mean'],
+        mode='lines',
+        legendgroup= 'cluster'+str(cluster),
+        name='Cluster '+str(cluster)+ " Average Depth",
+        line=go.Line(color=colors[cluster]),
+    )
+    plot_data.append(line_trace)
+
+
+layout = go.Layout(title='Dive Cluster Summary',xaxis=dict(title='Time in Seconds'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
+py.init_notebook_mode()
+fig = go.Figure(data=plot_data, layout=layout)
+py.iplot(fig)
