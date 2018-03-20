@@ -5,7 +5,7 @@ __license__ = "GPL"
 __version__ = "0.1.1"
 __maintainer__ = "Alex Nunes"
 __email__ = "anunes@dal.ca"
-__status__ = "Development"
+__status__ = "Production"
 
 
 import pandas as pd
