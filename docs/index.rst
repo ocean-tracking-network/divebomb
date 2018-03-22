@@ -66,3 +66,4 @@ cluster the dives, but show them in ascending order by time in an iPython Notebo
    self
    divebomb_functions
    dive
+   plotting

@@ -7,6 +7,16 @@ import xarray as xr
 import colorlover as cl
 
 def plot_from_nc(folder, cluster, dive_id, ipython_display=True, filename=None):
+    """
+    :param folder: the path to the results folder contianing the cluster folders
+    :param cluster: the number of the cluster of the dive
+    :param dive_id: the number of of the dive
+    :param ipython_display: a boolean indicating whether or not to show the dive in a notebook
+    :param filename: the filename to save the dive to if it is not shown in a notebook
+
+    :return: a plotly line chart of the dive
+
+    """
     dive_file = '%s/cluster_%d/dive_%05d.nc' % (folder,cluster,dive_id)
     rootgrp = Dataset(dive_file)
     data = pd.DataFrame()
@@ -62,6 +72,15 @@ def plot_from_nc(folder, cluster, dive_id, ipython_display=True, filename=None):
 
 
 def cluster_summary_plot(folder, ipython_display=True, filename=None):
+    """
+    :param folder: the path to the results folder contianing the cluster folders
+    :param ipython_display: a boolean indicating whether or not to show the dive in a notebook
+    :param filename: the filename to save the dive to if it is not shown in a notebook
+
+    :return: a plotly graph summary of all of the dive clusters
+
+    """
+
     dataset = xr.open_dataset(os.path.join(folder, 'all_profiled_dives.nc'))
     df = dataset.to_dataframe().reset_index(drop=True)
     df.sort_values('dive_start', inplace=True)

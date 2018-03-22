@@ -33,6 +33,7 @@ units = 'seconds since 1970-01-01'
 def display_dive(index, data, starts,  surface_threshold):
     """
     This function just takes the index, the data, and the starts and displays the dive using plotly.
+    It is used as a helper method for viewing the dives if ``ipython_display`` is ``True`` in ``profile_dives()``.
 
     :param index: the index of the dive profile to plot
     :param data: the dataframe of the original dive data
@@ -153,7 +154,8 @@ def export_dives(dives, data, folder, is_surface_events=False):
 
 def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, animal_length=3.0, ipython_display_mode=False):
     """
-    profiles the dives
+    Calls the other functions to split and profile each dive. This function uses the
+    ``divebomb.Dive`` class to prfoile the dives.
 
     :param data: a dataframe needing a time and a depth column
     :param folder: a parent folder to write out to

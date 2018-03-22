@@ -4,6 +4,9 @@
 Dive Class
 ----------
 
+The Dive class is used to encapsulate all the attriutes of a dive and the data needed
+to reconstruct a plot of the dive.
+
 .. currentmodule:: divebomb.Dive
 
 .. autoclass:: Dive.Dive
