@@ -22,13 +22,13 @@ Each dive is then profiled with the following attributes:
 - **no_skew** - a boolean of 1 or 0 indicating if the dive is not skewed
 
 The dive profiles are reduced to 8 dimensions using Principal Component Analsysis. Guassian Mixed Models are generated using theses variables
-and the minimal Bayesian Information Criterion is used to determine the optimal number of clusters. The dives are split into the clutsers using
+and the minimal Bayesian Information Criterion is used to determine the optimal number of clusters. The dives are split into the clusters using
 Agglomerative Hierarchical Clustering (from sklearn). The dives are then display through iPython notebooks or saved to netCDF files organized by cluster.
 
 
 Surfacing Events
 ----------------
-Surface events are not separated out, but instead left to the user to determine if a cluster should classified as durface events.
+Surface events are not separated out, but instead left to the user to determine if a cluster should classified as surface events.
 Surfacing times are those to be above the surface threshold, which is determined by the following equation:
 :math:`animal length * cos(45 radians)`
 
