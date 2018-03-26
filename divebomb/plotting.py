@@ -6,7 +6,7 @@ import os
 import xarray as xr
 import colorlover as cl
 
-def plot_from_nc(folder, cluster, dive_id, ipython_display=True, filename=None):
+def plot_from_nc(folder, cluster, dive_id, ipython_display=True, filename='index.html'):
     """
     :param folder: the path to the results folder contianing the cluster folders
     :param cluster: the number of the cluster of the dive
@@ -23,13 +23,15 @@ def plot_from_nc(folder, cluster, dive_id, ipython_display=True, filename=None):
     data['time'] = rootgrp.variables['time'][:]
     data['depth'] = rootgrp.variables['depth'][:]
 
+    # Get and set the surface data
+    surface_data = data[data.time >= (
+        data.time.max() - rootgrp.td_surface_duration)]
 
-    descent_data = data[data.time <= rootgrp.bottom_start]
-    descent = go.Scatter(
-        x=num2date(descent_data.time.tolist(), units=rootgrp.time_units),
-        y=descent_data.depth,
+    surface = go.Scatter(
+        x=num2date(surface_data.time.tolist(), units=rootgrp.time_units),
+        y=surface_data.depth,
         mode='lines',
-        name='Descent'
+        name='Surface'
     )
 
     # Get and set the bottom data
@@ -42,9 +44,17 @@ def plot_from_nc(folder, cluster, dive_id, ipython_display=True, filename=None):
         name='Bottom'
     )
 
+    descent_data = data[data.time <= bottom_data.time.min()]
+    descent = go.Scatter(
+        x=num2date(descent_data.time.tolist(), units=rootgrp.time_units),
+        y=descent_data.depth,
+        mode='lines',
+        name='Descent'
+    )
+
     # Get and set the ascent data
-    ascent_data = data[(data.time >= (rootgrp.bottom_start + rootgrp.td_bottom_duration)) & (
-        data.time <= (data.time.max() - rootgrp.td_surface_duration))]
+    ascent_data = data[(data.time >= bottom_data.time.max()) & (
+        data.time <= surface_data.time.min())]
     ascent = go.Scatter(
         x=num2date(ascent_data.time.tolist(), units=rootgrp.time_units),
         y=ascent_data.depth,
@@ -52,30 +62,26 @@ def plot_from_nc(folder, cluster, dive_id, ipython_display=True, filename=None):
         name='Ascent'
     )
 
-    # Get and set the surface data
-    surface_data = data[data.time >= (
-        data.time.max() - rootgrp.td_surface_duration)]
-
-    surface = go.Scatter(
-        x=num2date(surface_data.time.tolist(), units=rootgrp.time_units),
-        y=surface_data.depth,
-        mode='lines',
-        name='Surface'
-    )
 
     layout = go.Layout(title='Dive {} from Cluster {}'.format(rootgrp.dive_id,rootgrp.cluster),xaxis=dict(title='Time'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
     rootgrp.close()
 
     plot_data = [descent, bottom, ascent, surface]
     fig = go.Figure(data=plot_data, layout=layout)
-    return py.iplot(fig)
+
+    if ipython_display:
+        py.init_notebook_mode()
+        return py.iplot(fig)
+    else:
+        return py.plot(fig, filename=filename)
 
 
-def cluster_summary_plot(folder, ipython_display=True, filename=None):
+def cluster_summary_plot(folder, ipython_display=True, filename='index.html',title='Dive Cluster Summary'):
     """
     :param folder: the path to the results folder contianing the cluster folders
     :param ipython_display: a boolean indicating whether or not to show the dive in a notebook
     :param filename: the filename to save the dive to if it is not shown in a notebook
+    :param title: the displaye title of the plot
 
     :return: a plotly graph summary of all of the dive clusters
 
@@ -138,7 +144,11 @@ def cluster_summary_plot(folder, ipython_display=True, filename=None):
         plot_data.append(line_trace)
 
 
-    layout = go.Layout(title='Dive Cluster Summary',xaxis=dict(title='Time in Seconds'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
+    layout = go.Layout(title,xaxis=dict(title='Time in Seconds'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
     py.init_notebook_mode()
     fig = go.Figure(data=plot_data, layout=layout)
-    return py.plot(fig, filename="nw3_mbl_dives.html")
+    if ipython_display:
+        py.init_notebook_mode()
+        return py.iplot(fig)
+    else:
+        return py.plot(fig, filename=filename)
