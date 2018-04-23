@@ -37,13 +37,13 @@ def calculate_window_mean(window, surface_threshold, df):
 def correct_depth_offset(data, window=3600, columns={'depth': 'depth', 'time': 'time'}, aux_file='corrected_depth_auxillary_data.nc', method='max', surface_threshold=4):
     """
     :param data: The dataset consisting of a time and a depth column
-    :param window: time window
+    :param window: time window (in seconds) to use in the calculation
     :param aux_file: A netCDF file to write all of the calculated offsets and window size
     :param columns: column renaming dictionary if needed
-    :param method:
-    :param surface_threshold:
+    :param method: either 'max' or 'mean' declaring the calculation method, default is max
+    :param surface_threshold: maximum values (in meters) to use when using the mean the calculate
 
-    :return: A DataFrame
+    :return: A DataFrame with a corrected depth
     """
 
 

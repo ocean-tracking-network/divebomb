@@ -277,6 +277,9 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
 
         # Write an overall summary netcdf
         xarray_data = xr.Dataset(dives)
+        xarray_data.variables['bottom_start'].attrs = {'units':units}
+        xarray_data.variables['dive_end'].attrs = {'units':units}
+        xarray_data.variables['dive_start'].attrs = {'units':units}
         xarray_data.to_netcdf(os.path.join(folder, "all_profiled_dives.nc"), mode='w')
         xarray_data.close()
 
