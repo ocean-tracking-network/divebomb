@@ -144,7 +144,7 @@ def cluster_summary_plot(folder, ipython_display=True, filename='index.html',tit
         plot_data.append(line_trace)
 
 
-    layout = go.Layout(title,xaxis=dict(title='Time in Seconds'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
+    layout = go.Layout(title=title,xaxis=dict(title='Time in Seconds', range=[0, 3600]), yaxis=dict(title='Depth in Meters',autorange='reversed'))
     py.init_notebook_mode()
     fig = go.Figure(data=plot_data, layout=layout)
     if ipython_display:

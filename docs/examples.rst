@@ -1,7 +1,11 @@
 .. _examples_page:
 
-Examples
-========
+=============
+Code Examples
+=============
+
+Divebomb
+--------
 
 Pass a Pandas DataFrame to the function with a ``time`` and a ``depth`` (in positive meters) column. Provide the length of animal using ``animal_length`` (in meters).
 Refine other arguments as needed.
@@ -28,6 +32,36 @@ cluster the dives, but show them in ascending order by time in an iPython Notebo
 
   # Store in files
   profile_dives(df, folder='results', animal_length=animal_length)
+
+
+Correcting Depth
+----------------
+
+Depth recordings can be uncalibrated or drift over time. The following are two ways from divebomb's
+:ref:`preprocessing module <preprocessing_functions_page>` to correct for the offset on a **surfacing animal**.
+The data passes to the function must have ``time`` and a ``depth`` (in positive meters) columns.
+The first uses a local max:
+
+.. code:: python
+
+  from divebomb import profile_dives
+  import pandas as pd
+  window = 3600 #seconds
+
+  data = pd.read_csv('/path/to/data.csv')
+  corrected_depth_data = correct_depth_offset(data, window=window, aux_file='results/aux_file.nc')
+
+The second wethod uses a rolling average of all surface and near surface values in the time window:
+
+.. code:: python
+
+  from divebomb import profile_dives
+  import pandas as pd
+  window = 3600 # seconds
+  surface_threshold = 4 # meters
+
+  data = pd.read_csv('/path/to/data.csv')
+  corrected_depth_data = correct_depth_offset(data, window=window, method='mean', surface_threshold=surface_threshold, aux_file='results/aux_file.nc')
 
 
 Plotting Results
