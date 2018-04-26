@@ -2,10 +2,10 @@
 __author__ = "Alex Nunes"
 __credits__ = ["Alex Nunes", "Fran Broell"]
 __license__ = "GPL"
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __maintainer__ = "Alex Nunes"
 __email__ = "anunes@dal.ca"
-__status__ = "Development"
+__status__ = "Production"
 
 
 import pandas as pd
@@ -22,6 +22,7 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.mixture import GaussianMixture
+import xarray as xr
 import math
 
 pd.options.mode.chained_assignment = None
@@ -32,6 +33,7 @@ units = 'seconds since 1970-01-01'
 def display_dive(index, data, starts,  surface_threshold):
     """
     This function just takes the index, the data, and the starts and displays the dive using plotly.
+    It is used as a helper method for viewing the dives if ``ipython_display`` is ``True`` in ``profile_dives()``.
 
     :param index: the index of the dive profile to plot
     :param data: the dataframe of the original dive data
@@ -152,7 +154,8 @@ def export_dives(dives, data, folder, is_surface_events=False):
 
 def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, animal_length=3.0, ipython_display_mode=False):
     """
-    profiles the dives
+    Calls the other functions to split and profile each dive. This function uses the
+    ``divebomb.Dive`` class to prfoile the dives.
 
     :param data: a dataframe needing a time and a depth column
     :param folder: a parent folder to write out to
@@ -270,8 +273,15 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
         for column in pca_output_matrix.columns:
             pc[column] = pca_output.createVariable(column,'f8',('order',),zlib=True)
             pc[column][:] = loadings[column].tolist()
-
         pca_group.close()
+
+        # Write an overall summary netcdf
+        xarray_data = xr.Dataset(dives)
+        xarray_data.variables['bottom_start'].attrs = {'units':units}
+        xarray_data.variables['dive_end'].attrs = {'units':units}
+        xarray_data.variables['dive_start'].attrs = {'units':units}
+        xarray_data.to_netcdf(os.path.join(folder, "all_profiled_dives.nc"), mode='w')
+        xarray_data.close()
 
 
         # Return the three datasets back to the user

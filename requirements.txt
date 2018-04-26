@@ -7,3 +7,4 @@ sklearn
 datetime
 netCDF4
 ipywidgets
+colorlover
