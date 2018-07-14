@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from setuptools import setup, find_packages
-
+from codecs import open
 
 with open('README') as f:
     readme = f.read()
@@ -11,7 +11,7 @@ with open('LICENSE') as f:
 
 setup(
     name='divebomb',
-    version='0.2.0',
+    version='0.2.1',
     description='divebomb dive classification algorithm',
     long_description=readme,
     author='Alex Nunes',
