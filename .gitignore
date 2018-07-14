@@ -6,5 +6,5 @@
 /*.egg-info
 docs/_build
 *__pycache__
-cond-dist
+conda-dist
 Icon*
