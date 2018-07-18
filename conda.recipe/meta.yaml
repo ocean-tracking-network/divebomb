@@ -1,6 +1,6 @@
 package:
   name: divebomb
-  version: "0.2.0"
+  version: "0.2.1"
 
 source:
   git_rev: master
@@ -21,9 +21,10 @@ requirements:
     - pandas
     - numpy
     - sphinx
+    - plotly
     - netcdf4
     - peakutils
-    - sklearn
+    - scikit-learn
 
   run:
     - python {{ python }}
@@ -34,12 +35,7 @@ requirements:
     - plotly
     - netcdf4
     - peakutils
-    - sklearn
-    
-test:
-  imports:
-    - resonate
-
+    - scikit-learn
 
 about:
   home: https://gitlab.oceantrack.org/anunes/divebomb
