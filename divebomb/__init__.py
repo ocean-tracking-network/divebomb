@@ -2,7 +2,7 @@
 __author__ = "Alex Nunes"
 __credits__ = ["Alex Nunes", "Fran Broell"]
 __license__ = "GPL"
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 __maintainer__ = "Alex Nunes"
 __email__ = "anunes@dal.ca"
 __status__ = "Production"
@@ -10,6 +10,7 @@ __status__ = "Production"
 
 import pandas as pd
 from divebomb.Dive import Dive
+from divebomb.DeepDive import DeepDive
 import os, shutil
 import numpy as np
 import __future__
@@ -24,13 +25,14 @@ from sklearn.decomposition import PCA
 from sklearn.mixture import GaussianMixture
 import xarray as xr
 import math
+import peakutils as pku
 
 pd.options.mode.chained_assignment = None
 
 units = 'seconds since 1970-01-01'
 
 
-def display_dive(index, data, starts,  surface_threshold):
+def display_dive(index, data, starts,  surface_threshold, type ='dive'):
     """
     This function just takes the index, the data, and the starts and displays the dive using plotly.
     It is used as a helper method for viewing the dives if ``ipython_display`` is ``True`` in ``profile_dives()``.
@@ -45,7 +47,10 @@ def display_dive(index, data, starts,  surface_threshold):
 
     index = int(index)
     print(str(starts.loc[index, 'start_block']) + ":" + str(starts.loc[index, 'end_block']))
-    dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']],  surface_threshold=surface_threshold)
+    if type == 'deepdive':
+        dive_profile = DeepDive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']])
+    else:
+        dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']],  surface_threshold=surface_threshold)
     return dive_profile.plot()
 
 def cluster_dives(dives):
@@ -152,7 +157,47 @@ def export_dives(dives, data, folder, is_surface_events=False):
 
         rootgrp.close()
 
-def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'}, acceleration_threshold=0.015, animal_length=3.0, ipython_display_mode=False):
+def get_dive_starting_points(data, is_surfacing_animal = True, dive_detection_sensitivity=None,
+                            minimal_time_between_dives = 10, surface_threshold=0, columns={'depth': 'depth', 'time': 'time'}):
+
+    # drop all columns in the dataframe that aren't time or depth
+    for k, v in columns.items():
+        if k != v:
+            data[k] = data[v]
+            data.drop(v, axis=1)
+    # Convert time to seconds since
+    if data[columns['time']].dtypes != np.float64:
+        data[columns['time']] = date2num(pd.to_datetime(data[columns['time']]).tolist(), units=units)
+
+    if is_surfacing_animal and dive_detection_sensitivity is None:
+        dive_detection_sensitivity = 0.98
+    elif dive_detection_sensitivity is None:
+        dive_detection_sensitivity = 0.5
+
+    starts = pku.indexes((data.depth*-1), thres=dive_detection_sensitivity, min_dist=(minimal_time_between_dives/data.time.diff().mean()))
+    starts = data[data.index.isin(starts)]
+
+    starts['start_block'] = starts.index
+    starts['end_block'] = starts.start_block.shift(-1) + 1
+    starts.end_block.fillna(data.index.max(), inplace=True)
+    starts.end_block = starts.end_block.astype(int)
+
+    if is_surfacing_animal:
+        for index, row in starts.iterrows():
+            starts.loc[index, 'max_depth'] = data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']].depth.max()
+        surface_threshold = surface_threshold
+        starts = starts[(starts.max_depth > surface_threshold)]
+        starts.drop(['start_block', 'end_block', 'max_depth'], axis=1, inplace=True)
+        starts['time_diff'] = starts.time.diff()
+        starts['start_block'] = starts.index
+        starts['end_block'] = starts.start_block.shift(-1) + 1
+        starts.end_block.fillna(data.index.max(), inplace=True)
+        starts.end_block = starts.end_block.astype(int)
+    return starts
+
+def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
+                    is_surfacing_animal = True, dive_detection_sensitivity=None, minimal_time_between_dives = 10,
+                    surface_threshold=0, ipython_display_mode=False):
     """
     Calls the other functions to split and profile each dive. This function uses the
     ``divebomb.Dive`` class to prfoile the dives.
@@ -167,9 +212,6 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
 
     """
 
-    # Get surface thresholdbased on animal length
-    surface_threshold = math.cos(math.radians(45)) * animal_length
-
     # drop all columns in the dataframe that aren't time or depth
     for k, v in columns.items():
         if k != v:
@@ -180,43 +222,14 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
         data[columns['time']] = date2num(pd.to_datetime(data[columns['time']]).tolist(), units=units)
 
     # Sort data into a time series and create the 1st and 2nd derivatives (velocity and acceleration)
-    data = data.sort_values(by=columns['time'])
-    data['velocity'] = data[columns['depth']].diff() / data[columns['time']].diff()
-    data['acceleration'] = (data.velocity.diff()/data[columns['time']].diff())
+    data = data.sort_values(by=columns['time']).reset_index(drop=True)
 
-    # Generate the depth difference, acceleration lead, and depth lead
-    data['depth_diff'] = data.depth.diff()
-    data['accel_lead'] = data.acceleration.shift(-1)
-    data['depth_lead'] = data.depth_diff.shift(-1)
-
-
-    # Filter the data byt the next change in acceleration, the next change in depth, and the current depth to find the possible starting points
-    starts = data[(data['accel_lead'] >= acceleration_threshold) & (data.depth_lead > 0) & (data[columns['depth']] <= surface_threshold)]
-
-    # Store the starting index and end index for each of the dives
-    starts['start_block'] = starts.index
-    starts['end_block'] = starts.start_block.shift(-1) + 1
-    starts.end_block.fillna(data.index.max(), inplace=True)
-    starts.end_block = starts.end_block.astype(int)
-
-    for index, row in starts.iterrows():
-        starts.loc[index, 'max_depth'] = data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']].depth.max()
-
-
-    starts = starts[(starts.max_depth > surface_threshold)]
-    starts.drop(['start_block', 'end_block', 'max_depth'], axis=1, inplace=True)
-    starts['time_diff'] = starts.time.diff()
-    starts = starts[(starts.time_diff >= 30)]
-
-    # Store the starting index and end index for each of the dives
-    starts['start_block'] = starts.index
-    starts['end_block'] = starts.start_block.shift(-1) + 1
-
-    starts.end_block.fillna(data.index.max(), inplace=True)
-    starts.end_block = starts.end_block.astype(int)
-    # Remove dives shorter than five points and reset the index
-
-    starts.reset_index(inplace=True, drop=True)
+    starts = get_dive_starting_points(data,
+                                    is_surfacing_animal=is_surfacing_animal,
+                                    minimal_time_between_dives=minimal_time_between_dives,
+                                    dive_detection_sensitivity=dive_detection_sensitivity,
+                                    surface_threshold=surface_threshold
+                                    column=columns)
 
     # Use the interact widget to display the dives using a slider to indicate the index.
     if ipython_display_mode:

@@ -42,7 +42,7 @@ class Dive:
 
         self.sufficient=True
         if data[columns['time']].dtypes != np.float64:
-            data.time = num2date(data.time.tolist(),units=units)
+            data.time = date2num(data.time.tolist(),units=units)
 
         self.data = data.sort_values('time').reset_index(drop=True)
         self.surface_threshold = surface_threshold
