@@ -41,8 +41,9 @@ class DeepDive:
         self.peaks = self.get_peaks()
         self.overall_change_in_depth =  self.data.depth.diff().sum()
         self.time_at_depth = self.get_time_at_depth()
-        self.time_pre_depth = self.get_time_pre_depth()
-        self.time_post_depth = self.get_time_post_depth()
+        # TODO implement pre at post times in seconds
+        # self.time_pre_depth = self.get_time_pre_depth()
+        # self.time_post_depth = self.get_time_post_depth()
 
     def get_peaks(self):
         """
@@ -63,19 +64,6 @@ class DeepDive:
         del dive
         return time
 
-    def get_time_at_depth(self):
-        time=0
-        dive = self.data.copy(deep=True)
-        dive['time_diff']= dive.time.diff()
-        at_depth_data = dive[dive.depth > (dive.depth.max() - ((dive.depth.max() - dive.depth.min()) * 0.15))]
-        pre_depth_data = dive[(dive.depth < (dive.depth.max() - ((dive.depth.max() - dive.depth.min()) * 0.15))) & (dive.time <= at_depth_data.time.min())]
-
-
-        pre_depth_data =  pre_depth_data.append(at_depth_data.head(1))
-        post_depth_data =  post_depth_data.append(at_depth_data.tail(1))
-        post_depth_data.sort_values('time', inplace=True)
-        del dive
-        return time
 
     def get_descent_vertical_distance(self):
         dive = self.data.copy(deep=True)

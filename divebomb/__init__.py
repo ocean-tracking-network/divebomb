@@ -1,7 +1,7 @@
 
 __author__ = "Alex Nunes"
 __credits__ = ["Alex Nunes", "Fran Broell"]
-__license__ = "GPL"
+__license__ = "GPLv2"
 __version__ = "0.3.0"
 __maintainer__ = "Alex Nunes"
 __email__ = "anunes@dal.ca"
@@ -32,7 +32,7 @@ pd.options.mode.chained_assignment = None
 units = 'seconds since 1970-01-01'
 
 
-def display_dive(index, data, starts,  surface_threshold, type ='dive'):
+def display_dive(index, data, starts, type='Dive'):
     """
     This function just takes the index, the data, and the starts and displays the dive using plotly.
     It is used as a helper method for viewing the dives if ``ipython_display`` is ``True`` in ``profile_dives()``.
@@ -47,7 +47,7 @@ def display_dive(index, data, starts,  surface_threshold, type ='dive'):
 
     index = int(index)
     print(str(starts.loc[index, 'start_block']) + ":" + str(starts.loc[index, 'end_block']))
-    if type == 'deepdive':
+    if type == 'DeepDive':
         dive_profile = DeepDive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']])
     else:
         dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']],  surface_threshold=surface_threshold)
@@ -157,10 +157,51 @@ def export_dives(dives, data, folder, is_surface_events=False):
 
         rootgrp.close()
 
-def get_dive_starting_points(data, is_surfacing_animal = True, dive_detection_sensitivity=None,
-                            minimal_time_between_dives = 10, surface_threshold=0, columns={'depth': 'depth', 'time': 'time'}):
+def export_all_data(folder, data, dives, loadings, pca_output_matrix):
+    # Export the dives to netCDF
+    if os.path.exists(folder):
+        shutil.rmtree(folder)
+    os.makedirs(folder)
 
-    # drop all columns in the dataframe that aren't time or depth
+    for cluster in dives.cluster.unique():
+        os.makedirs(folder+'/cluster_'+str(cluster))
+
+    # export the dives
+    data.set_index('time',inplace=True, drop=False)
+    dives.dive_start = dives.dive_start.astype(int)
+    dives.dive_end = dives.dive_end.astype(int)
+    data.time = data.time.astype(int)
+    export_dives(dives, data, folder)
+
+    # Export the PCA Matrices
+    pca_group = Dataset(folder+'/pca_matrices_data.nc', 'w')
+    pca_loadings = pca_group.createGroup('pca_loadings')
+    pca_output = pca_group.createGroup('pca_output')
+
+    pca_group.createDimension('order', None)
+
+    str_max = (loadings.component.str.len()).max()
+    components = pca_loadings.createVariable("component",str,('order',), zlib=True)
+    components = np.array(loadings.component.tolist(), 'S'+str(int(str_max)))
+    pc={}
+    for column in loadings.iloc[:, 1:].columns:
+        pc[column] = pca_loadings.createVariable(column,'f8',('order',),zlib=True)
+        pc[column][:] = loadings[column].tolist()
+
+    for column in pca_output_matrix.columns:
+        pc[column] = pca_output.createVariable(column,'f8',('order',),zlib=True)
+        pc[column][:] = loadings[column].tolist()
+    pca_group.close()
+
+    # Write an overall summary netcdf
+    xarray_data = xr.Dataset(dives)
+    xarray_data.variables['bottom_start'].attrs = {'units':units}
+    xarray_data.variables['dive_end'].attrs = {'units':units}
+    xarray_data.variables['dive_start'].attrs = {'units':units}
+    xarray_data.to_netcdf(os.path.join(folder, "all_profiled_dives.nc"), mode='w')
+    xarray_data.close()
+
+def clean_dive_data(data, columns={'depth': 'depth', 'time': 'time'}):
     for k, v in columns.items():
         if k != v:
             data[k] = data[v]
@@ -168,6 +209,16 @@ def get_dive_starting_points(data, is_surfacing_animal = True, dive_detection_se
     # Convert time to seconds since
     if data[columns['time']].dtypes != np.float64:
         data[columns['time']] = date2num(pd.to_datetime(data[columns['time']]).tolist(), units=units)
+
+    return data
+
+def get_dive_starting_points(data, is_surfacing_animal = True, dive_detection_sensitivity=None,
+                            minimal_time_between_dives = 10, surface_threshold=0, columns={'depth': 'depth', 'time': 'time'}):
+
+    # drop all columns in the dataframe that aren't time or depth
+    data = clean_dive_data(data)
+
+    data = data.sort_values(by=columns['time']).reset_index(drop=True)
 
     if is_surfacing_animal and dive_detection_sensitivity is None:
         dive_detection_sensitivity = 0.98
@@ -212,89 +263,80 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
 
     """
 
-    # drop all columns in the dataframe that aren't time or depth
-    for k, v in columns.items():
-        if k != v:
-            data[k] = data[v]
-            data.drop(v, axis=1)
-    # Convert time to seconds since
-    if data[columns['time']].dtypes != np.float64:
-        data[columns['time']] = date2num(pd.to_datetime(data[columns['time']]).tolist(), units=units)
-
-    # Sort data into a time series and create the 1st and 2nd derivatives (velocity and acceleration)
-    data = data.sort_values(by=columns['time']).reset_index(drop=True)
-
     starts = get_dive_starting_points(data,
                                     is_surfacing_animal=is_surfacing_animal,
                                     minimal_time_between_dives=minimal_time_between_dives,
                                     dive_detection_sensitivity=dive_detection_sensitivity,
-                                    surface_threshold=surface_threshold
-                                    column=columns)
+                                    surface_threshold=surface_threshold,
+                                    columns=columns)
+
+    type='Dive'
+    if not is_surfacing_animal:
+        type='DeepDive'
 
     # Use the interact widget to display the dives using a slider to indicate the index.
     if ipython_display_mode:
         py.init_notebook_mode()
-        return interact(display_dive, index=widgets.IntSlider(min=0, max=starts.index.max(), step=1, value=0, layout=Layout(width='100%')), data=fixed(data), starts=fixed(starts), surface_threshold=fixed(surface_threshold))
+        return interact(display_dive, index=widgets.IntSlider(min=0, max=starts.index.max(), step=1, value=0, layout=Layout(width='100%')), data=fixed(data), starts=fixed(starts), type=fixed(type))
     elif folder is None:
         return 'Error: You must provide a folder name or set ipython_display_mode=True'
     else:
-        profiles = []
 
-        for index, row in starts.iterrows():
-            dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']], surface_threshold=surface_threshold, suppress_warning=True)
-            profiles.append(dive_profile)
-        # If the user indicates that the results should be stored iterate through and add the dives to a dataframe
         dives = pd.DataFrame()
-        for dive in profiles:
-            dives = dives.append(dive.to_dict(), ignore_index=True)
+        if type == 'DeepDive':
+            for index, row in starts.iterrows():
+                dive_profile = DeepDive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']])
+                dives = dives.append(dive_profile.to_dict(), ignore_index=True)
+        else:
+            for index, row in starts.iterrows():
+                dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']], surface_threshold=surface_threshold)
+                dives = dives.append(dive_profile.to_dict(), ignore_index=True)
 
-
-        # Filter surfacing dives here
         dives, loadings, pca_output_matrix = cluster_dives(dives)
 
-
-        # Export the dives to netCDF
-        if os.path.exists(folder):
-            shutil.rmtree(folder)
-        os.makedirs(folder)
-
-        for cluster in dives.cluster.unique():
-            os.makedirs(folder+'/cluster_'+str(cluster))
-
-        # export the dives
-        data.set_index('time',inplace=True, drop=False)
-        dives.dive_start = dives.dive_start.astype(int)
-        dives.dive_end = dives.dive_end.astype(int)
-        data.time = data.time.astype(int)
-        export_dives(dives ,data, folder)
-
-        # Export the PCA Matrices
-        pca_group = Dataset(folder+'/pca_matrices_data.nc', 'w')
-        pca_loadings = pca_group.createGroup('pca_loadings')
-        pca_output = pca_group.createGroup('pca_output')
-
-        pca_group.createDimension('order', None)
-
-        str_max = (loadings.component.str.len()).max()
-        components = pca_loadings.createVariable("component",str,('order',), zlib=True)
-        components = np.array(loadings.component.tolist(), 'S'+str(int(str_max)))
-        pc={}
-        for column in loadings.iloc[:, 1:].columns:
-            pc[column] = pca_loadings.createVariable(column,'f8',('order',),zlib=True)
-            pc[column][:] = loadings[column].tolist()
-
-        for column in pca_output_matrix.columns:
-            pc[column] = pca_output.createVariable(column,'f8',('order',),zlib=True)
-            pc[column][:] = loadings[column].tolist()
-        pca_group.close()
-
-        # Write an overall summary netcdf
-        xarray_data = xr.Dataset(dives)
-        xarray_data.variables['bottom_start'].attrs = {'units':units}
-        xarray_data.variables['dive_end'].attrs = {'units':units}
-        xarray_data.variables['dive_start'].attrs = {'units':units}
-        xarray_data.to_netcdf(os.path.join(folder, "all_profiled_dives.nc"), mode='w')
-        xarray_data.close()
+        export_all_data(folder, data, dives, loadings, pca_output_matrix)
+        # # Export the dives to netCDF
+        # if os.path.exists(folder):
+        #     shutil.rmtree(folder)
+        # os.makedirs(folder)
+        #
+        # for cluster in dives.cluster.unique():
+        #     os.makedirs(folder+'/cluster_'+str(cluster))
+        #
+        # # export the dives
+        # data.set_index('time',inplace=True, drop=False)
+        # dives.dive_start = dives.dive_start.astype(int)
+        # dives.dive_end = dives.dive_end.astype(int)
+        # data.time = data.time.astype(int)
+        # export_dives(dives ,data, folder)
+        #
+        # # Export the PCA Matrices
+        # pca_group = Dataset(folder+'/pca_matrices_data.nc', 'w')
+        # pca_loadings = pca_group.createGroup('pca_loadings')
+        # pca_output = pca_group.createGroup('pca_output')
+        #
+        # pca_group.createDimension('order', None)
+        #
+        # str_max = (loadings.component.str.len()).max()
+        # components = pca_loadings.createVariable("component",str,('order',), zlib=True)
+        # components = np.array(loadings.component.tolist(), 'S'+str(int(str_max)))
+        # pc={}
+        # for column in loadings.iloc[:, 1:].columns:
+        #     pc[column] = pca_loadings.createVariable(column,'f8',('order',),zlib=True)
+        #     pc[column][:] = loadings[column].tolist()
+        #
+        # for column in pca_output_matrix.columns:
+        #     pc[column] = pca_output.createVariable(column,'f8',('order',),zlib=True)
+        #     pc[column][:] = loadings[column].tolist()
+        # pca_group.close()
+        #
+        # # Write an overall summary netcdf
+        # xarray_data = xr.Dataset(dives)
+        # xarray_data.variables['bottom_start'].attrs = {'units':units}
+        # xarray_data.variables['dive_end'].attrs = {'units':units}
+        # xarray_data.variables['dive_start'].attrs = {'units':units}
+        # xarray_data.to_netcdf(os.path.join(folder, "all_profiled_dives.nc"), mode='w')
+        # xarray_data.close()
 
 
         # Return the three datasets back to the user
