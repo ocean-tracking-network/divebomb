@@ -15,7 +15,6 @@ class DeepDive:
 
     def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}):
 
-        self.sufficient=True
         if data[columns['time']].dtypes != np.float64:
             data.time = date2num(data.time.tolist(),units=units)
 
@@ -29,7 +28,7 @@ class DeepDive:
         self.min_depth = self.data.depth.min()
         self.dive_start = self.data.time.min()
         self.dive_end = self.data.time.max()
-        self.total_duration = self.data.time.max() - self.data.time.min()
+        self.td_total_duration = self.data.time.max() - self.data.time.min()
         self.depth_variance = np.std(self.data.depth)
         self.average_vertical_velocity = np.absolute(((self.data.depth.diff()/self.data.time.diff()))).mean()
         self.average_descent_velocity = self.get_average_descent_velocity()
@@ -40,10 +39,9 @@ class DeepDive:
         self.total_ascent_distance_traveled = self.get_ascent_vertical_distance()
         self.peaks = self.get_peaks()
         self.overall_change_in_depth =  self.data.depth.diff().sum()
-        self.time_at_depth = self.get_time_at_depth()
-        # TODO implement pre at post times in seconds
-        # self.time_pre_depth = self.get_time_pre_depth()
-        # self.time_post_depth = self.get_time_post_depth()
+        self.td_time_at_depth = self.get_time_at_depth()
+        self.td_time_pre_depth = self.get_time_pre_depth()
+        self.td_time_post_depth = self.get_time_post_depth()
 
     def get_peaks(self):
         """
@@ -64,6 +62,27 @@ class DeepDive:
         del dive
         return time
 
+    def get_time_pre_depth(self):
+        time=0
+        dive = self.data.copy(deep=True)
+        dive['time_diff']= dive.time.diff()
+        at_depth_data = dive[dive.depth > (dive.depth.max() - ((dive.depth.max() - dive.depth.min()) * 0.15))].tail(-1)
+        time_data = dive[dive.time < at_depth_data.time.min()]
+        if len(time_data) != 0:
+            time = time_data.time_diff.sum()
+        del dive
+        return time
+
+    def get_time_post_depth(self):
+        time=0
+        dive = self.data.copy(deep=True)
+        dive['time_diff']= dive.time.diff()
+        at_depth_data = dive[dive.depth > (dive.depth.max() - ((dive.depth.max() - dive.depth.min()) * 0.15))].tail(-1)
+        time_data = dive[dive.time > at_depth_data.time.max()]
+        if len(time_data) != 0:
+            time = time_data.time_diff.sum()
+        del dive
+        return time
 
     def get_descent_vertical_distance(self):
         dive = self.data.copy(deep=True)
@@ -109,46 +128,41 @@ class DeepDive:
         :return: a plotly graph showing the phases of the dive
         """
         # Set the data to plot the segments of the dive
-        if self.sufficient:
-            # Get and set the descent data
+        dive = self.data.copy(deep=True)
+        dive['time_diff']= dive.time.diff()
 
-            dive = self.data.copy(deep=True)
-            dive['time_diff']= dive.time.diff()
-
-            at_depth_data = dive[dive.depth > (dive.depth.max() - ((dive.depth.max() - dive.depth.min()) * 0.15))]
-            pre_depth_data = dive[(dive.depth < (dive.depth.max() - ((dive.depth.max() - dive.depth.min()) * 0.15))) & (dive.time <= at_depth_data.time.min())]
-            post_depth_data = dive[(dive.depth < (dive.depth.max() - ((dive.depth.max() - dive.depth.min()) * 0.15)))& (dive.time >= at_depth_data.time.max())]
+        at_depth_data = dive[dive.depth > (dive.depth.max() - ((dive.depth.max() - dive.depth.min()) * 0.15))]
+        pre_depth_data = dive[(dive.depth < (dive.depth.max() - ((dive.depth.max() - dive.depth.min()) * 0.15))) & (dive.time <= at_depth_data.time.min())]
+        post_depth_data = dive[(dive.depth < (dive.depth.max() - ((dive.depth.max() - dive.depth.min()) * 0.15)))& (dive.time >= at_depth_data.time.max())]
 
 
-            pre_depth_data =  pre_depth_data.append(at_depth_data.head(1))
-            post_depth_data =  post_depth_data.append(at_depth_data.tail(1))
-            post_depth_data.sort_values('time', inplace=True)
+        pre_depth_data =  pre_depth_data.append(at_depth_data.head(1))
+        post_depth_data =  post_depth_data.append(at_depth_data.tail(1))
+        post_depth_data.sort_values('time', inplace=True)
 
-            pre_depth = go.Scatter(
-                x=num2date(pre_depth_data.time.tolist(), units=units),
-                y=pre_depth_data.depth,
-                mode='lines+markers',
-                name='Pre Depth'
-            )
+        pre_depth = go.Scatter(
+            x=num2date(pre_depth_data.time.tolist(), units=units),
+            y=pre_depth_data.depth,
+            mode='lines+markers',
+            name='Pre Depth'
+        )
 
-            at_depth = go.Scatter(
-                x=num2date(at_depth_data.time.tolist(), units=units),
-                y=at_depth_data.depth,
-                mode='lines+markers',
-                name='At Depth'
-            )
+        at_depth = go.Scatter(
+            x=num2date(at_depth_data.time.tolist(), units=units),
+            y=at_depth_data.depth,
+            mode='lines+markers',
+            name='At Depth'
+        )
 
-            post_depth = go.Scatter(
-                x=num2date(post_depth_data.time.tolist(), units=units),
-                y=post_depth_data.depth,
-                mode='lines+markers',
-                name='Post Depth'
-            )
+        post_depth = go.Scatter(
+            x=num2date(post_depth_data.time.tolist(), units=units),
+            y=post_depth_data.depth,
+            mode='lines+markers',
+            name='Post Depth'
+        )
 
-            layout = go.Layout(title='Dive starting at {}'.format(num2date(self.dive_start, units=units)),
-                               xaxis=dict(title='Time'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
-            plot_data = [pre_depth, post_depth, at_depth]
-            fig = go.Figure(data=plot_data, layout=layout)
-            return py.iplot(fig)
-        else:
-            print("Insufficient data to plot.")
+        layout = go.Layout(title='Dive starting at {}'.format(num2date(self.dive_start, units=units)),
+                           xaxis=dict(title='Time'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
+        plot_data = [pre_depth, post_depth, at_depth]
+        fig = go.Figure(data=plot_data, layout=layout)
+        return py.iplot(fig)

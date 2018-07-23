@@ -92,7 +92,7 @@ def cluster_summary_plot(folder, ipython_display=True, filename='index.html',tit
     df.sort_values('dive_start', inplace=True)
     df['dive_id'] = df.index+1
 
-
+    # TODO Interpolate depth data to use full 100 values
     dive_data = pd.DataFrame()
     for group, data in df.groupby('cluster'):
         for index, row in data.iterrows():
@@ -101,11 +101,13 @@ def cluster_summary_plot(folder, ipython_display=True, filename='index.html',tit
             single_dive_data = pd.DataFrame()
             single_dive_data['time'] = rootgrp.variables['time'][:]
             single_dive_data['time'] = single_dive_data['time'] - single_dive_data['time'].min()
+            single_dive_data['progress_into_dive'] = round(single_dive_data.time/single_dive_data.time.max()*100, 0)
             single_dive_data['depth'] = rootgrp.variables['depth'][:]
             single_dive_data['cluster'] = rootgrp.cluster
             dive_data = dive_data.append(single_dive_data)
             rootgrp.close()
-    aggregated_data = dive_data.groupby(['time', 'cluster']).agg(['min','mean','max', 'median']).reset_index(level=[0,1])
+
+    aggregated_data = dive_data.groupby(['progress_into_dive', 'cluster']).agg(['min','mean','max', 'median']).reset_index(level=[0,1])
 
     plot_data = []
     colors = cl.scales[str(len(aggregated_data.cluster.unique()))]['qual']['Paired']
@@ -113,38 +115,39 @@ def cluster_summary_plot(folder, ipython_display=True, filename='index.html',tit
     for cluster in aggregated_data.cluster.unique():
 
         line_trace = go.Scatter(
-            x=aggregated_data[aggregated_data.cluster == cluster]['time'],
+            x=aggregated_data[aggregated_data.cluster == cluster]['progress_into_dive'],
             y=aggregated_data[aggregated_data.cluster == cluster]['depth']['min'],
             mode='lines',
             legendgroup= 'cluster'+str(cluster),
             name='Cluster '+str(cluster)+ " Min Depth",
-            line=go.Line(color=colors[cluster], dash = 'dash'),
+            line=go.scatter.Line(color=colors[cluster], dash = 'dash')
         )
         plot_data.append(line_trace)
 
         fill_trace = go.Scatter(
-            x=aggregated_data[aggregated_data.cluster == cluster]['time'],
+            x=aggregated_data[aggregated_data.cluster == cluster]['progress_into_dive'],
             y=aggregated_data[aggregated_data.cluster == cluster]['depth']['max'],
             fill='tonexty',
+            mode='lines',
             legendgroup= 'cluster'+str(cluster),
             fillcolor=colors[cluster].replace(')', ',0.3)').replace('rgb', 'rgba'),
             name='Cluster '+str(cluster) +' Possible Range',
-            line=go.Line(color='transparent'),
+            line=go.scatter.Line(width=0),
         )
         plot_data.append(fill_trace)
 
         line_trace = go.Scatter(
-            x=aggregated_data[aggregated_data.cluster == cluster]['time'],
+            x=aggregated_data[aggregated_data.cluster == cluster]['progress_into_dive'],
             y=aggregated_data[aggregated_data.cluster == cluster]['depth']['mean'],
             mode='lines',
             legendgroup= 'cluster'+str(cluster),
             name='Cluster '+str(cluster)+ " Average Depth",
-            line=go.Line(color=colors[cluster]),
+            line=go.scatter.Line(color=colors[cluster]),
         )
         plot_data.append(line_trace)
 
 
-    layout = go.Layout(title=title,xaxis=dict(title='Time in Seconds', range=[0, 3600]), yaxis=dict(title='Depth in Meters',autorange='reversed'))
+    layout = go.Layout(title='Clusters',xaxis=dict(title='Progress Through Dive (%)', range=[0, aggregated_data.progress_into_dive.max()]), yaxis=dict(title='Depth in Meters',autorange='reversed'))
     py.init_notebook_mode()
     fig = go.Figure(data=plot_data, layout=layout)
     if ipython_display:

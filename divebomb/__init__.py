@@ -5,7 +5,7 @@ __license__ = "GPLv2"
 __version__ = "0.3.0"
 __maintainer__ = "Alex Nunes"
 __email__ = "anunes@dal.ca"
-__status__ = "Production"
+__status__ = "Development"
 
 
 import pandas as pd
@@ -32,7 +32,7 @@ pd.options.mode.chained_assignment = None
 units = 'seconds since 1970-01-01'
 
 
-def display_dive(index, data, starts, type='Dive'):
+def display_dive(index, data, starts, type='Dive', surface_threshold=0):
     """
     This function just takes the index, the data, and the starts and displays the dive using plotly.
     It is used as a helper method for viewing the dives if ``ipython_display`` is ``True`` in ``profile_dives()``.
@@ -68,17 +68,20 @@ def cluster_dives(dives):
     """
     # Subset the data
     dataset = dives.fillna(0)
-    dataset = dataset[['ascent_velocity',
-                      'descent_velocity',
-                      'bottom_variance',
-                      'td_ascent_duration',
-                      'td_bottom_duration',
-                      'td_descent_duration',
-                      'dive_duration',
-                      'peaks',
-                      'no_skew',
-                      'left_skew',
-                      'right_skew']]
+    # dataset = dataset[['ascent_velocity',
+    #                   'descent_velocity',
+    #                   'bottom_variance',
+    #                   'td_ascent_duration',
+    #                   'td_bottom_duration',
+    #                   'td_descent_duration',
+    #                   'dive_duration',
+    #                   'peaks',
+    #                   'no_skew',
+    #                   'left_skew',
+    #                   'right_skew']]
+    dataset.drop(['dive_start', 'dive_end'], axis=1, inplace=True)
+    if 'surface_threshold' in dataset.columns:
+        dataset.drop('surface_threshold', axis=1, inplace=True)
 
     # Scale all values
     X = dataset.values
@@ -195,7 +198,8 @@ def export_all_data(folder, data, dives, loadings, pca_output_matrix):
 
     # Write an overall summary netcdf
     xarray_data = xr.Dataset(dives)
-    xarray_data.variables['bottom_start'].attrs = {'units':units}
+    if 'bottom_start' in xarray_data.variables:
+        xarray_data.variables['bottom_start'].attrs = {'units':units}
     xarray_data.variables['dive_end'].attrs = {'units':units}
     xarray_data.variables['dive_start'].attrs = {'units':units}
     xarray_data.to_netcdf(os.path.join(folder, "all_profiled_dives.nc"), mode='w')
@@ -219,6 +223,7 @@ def get_dive_starting_points(data, is_surfacing_animal = True, dive_detection_se
     data = clean_dive_data(data)
 
     data = data.sort_values(by=columns['time']).reset_index(drop=True)
+    data['time_diff'] = data.time.diff()
 
     if is_surfacing_animal and dive_detection_sensitivity is None:
         dive_detection_sensitivity = 0.98
@@ -233,17 +238,21 @@ def get_dive_starting_points(data, is_surfacing_animal = True, dive_detection_se
     starts.end_block.fillna(data.index.max(), inplace=True)
     starts.end_block = starts.end_block.astype(int)
 
+    # This line specidifcally looks for larg time gaps in the data and ignores them using the index
+    starts.loc[starts.time_diff.shift(-1) > starts.time_diff.mode()[0], 'end_block'] = starts.end_block - 1
+
     if is_surfacing_animal:
         for index, row in starts.iterrows():
             starts.loc[index, 'max_depth'] = data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']].depth.max()
         surface_threshold = surface_threshold
         starts = starts[(starts.max_depth > surface_threshold)]
-        starts.drop(['start_block', 'end_block', 'max_depth'], axis=1, inplace=True)
+        starts.drop(['start_block', 'end_block', 'max_depth', 'time_diff'], axis=1, inplace=True)
         starts['time_diff'] = starts.time.diff()
         starts['start_block'] = starts.index
         starts['end_block'] = starts.start_block.shift(-1) + 1
         starts.end_block.fillna(data.index.max(), inplace=True)
         starts.end_block = starts.end_block.astype(int)
+    starts.reset_index(drop=True, inplace=True)
     return starts
 
 def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
@@ -277,11 +286,12 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
     # Use the interact widget to display the dives using a slider to indicate the index.
     if ipython_display_mode:
         py.init_notebook_mode()
-        return interact(display_dive, index=widgets.IntSlider(min=0, max=starts.index.max(), step=1, value=0, layout=Layout(width='100%')), data=fixed(data), starts=fixed(starts), type=fixed(type))
+        return interact(display_dive, index=widgets.IntSlider(min=0, max=starts.index.max(), step=1, value=0,
+                        layout=Layout(width='100%')), data=fixed(data), starts=fixed(starts), type=fixed(type),
+                        surface_threshold=fixed(surface_threshold))
     elif folder is None:
         return 'Error: You must provide a folder name or set ipython_display_mode=True'
     else:
-
         dives = pd.DataFrame()
         if type == 'DeepDive':
             for index, row in starts.iterrows():

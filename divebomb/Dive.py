@@ -59,8 +59,8 @@ class Dive:
         self.bottom_variance = self.set_bottom_variance()
         self.descent_velocity = self.get_descent_velocity()
         self.ascent_velocity = self.get_ascent_velocity()
-        self.total_duration = self.td_ascent_duration+self.td_bottom_duration+self.td_descent_duration+self.td_surface_duration
-        self.dive_duration = self.total_duration - self.td_surface_duration
+        self.td_total_duration = self.td_ascent_duration+self.td_bottom_duration+self.td_descent_duration+self.td_surface_duration
+        self.td_dive_duration = self.td_total_duration - self.td_surface_duration
         self.no_skew = 0
         self.right_skew = 0
         self.left_skew = 0
@@ -132,6 +132,7 @@ class Dive:
         """
         :return: the descent velocity in m/s
         """
+        self.descent_velocity = 0
         descent_data = self.data[self.data.time <= self.bottom_start]
         if self.td_descent_duration > 0:
             self.descent_velocity = (descent_data.depth.max() - descent_data.depth.min()) / self.td_descent_duration
@@ -142,6 +143,7 @@ class Dive:
         """
         :return: the ascent velocity in m/s
         """
+        self.ascent_velocity = 0
         ascent_data = self.data[self.data.time >= (
             self.bottom_start + self.td_bottom_duration)]
         self.ascent_velocity = (ascent_data.depth.max() - ascent_data.depth.min()) / self.td_ascent_duration
