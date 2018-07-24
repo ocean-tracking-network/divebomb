@@ -76,7 +76,7 @@ def plot_from_nc(folder, cluster, dive_id, ipython_display=True, filename='index
         return py.plot(fig, filename=filename)
 
 
-def cluster_summary_plot(folder, ipython_display=True, filename='index.html',title='Dive Cluster Summary'):
+def cluster_summary_plot(folder, ipython_display=True, filename='index.html',title='Dive Cluster Summary', scale={'depth':False, 'time':False}):
     """
     :param folder: the path to the results folder contianing the cluster folders
     :param ipython_display: a boolean indicating whether or not to show the dive in a notebook
@@ -92,22 +92,35 @@ def cluster_summary_plot(folder, ipython_display=True, filename='index.html',tit
     df.sort_values('dive_start', inplace=True)
     df['dive_id'] = df.index+1
 
-    # TODO Interpolate depth data to use full 100 values
+    xaxis = 'time'
+    xaxis_title = 'Time in Seconds into Dive'
+
+    yaxis = 'depth'
+    yaxis_title = 'Depth in Meters'
+
     dive_data = pd.DataFrame()
     for group, data in df.groupby('cluster'):
         for index, row in data.iterrows():
             dive_file = '%s/cluster_%d/dive_%05d.nc' % (folder,row.cluster,row.dive_id)
             rootgrp= Dataset(dive_file)
             single_dive_data = pd.DataFrame()
+            single_dive_data['depth'] = rootgrp.variables['depth'][:]
             single_dive_data['time'] = rootgrp.variables['time'][:]
             single_dive_data['time'] = single_dive_data['time'] - single_dive_data['time'].min()
-            single_dive_data['progress_into_dive'] = round(single_dive_data.time/single_dive_data.time.max()*100, 0)
-            single_dive_data['depth'] = rootgrp.variables['depth'][:]
+            if 'time' in scale.keys() and scale['time']:
+                single_dive_data['progress_into_dive'] = round(single_dive_data.time/single_dive_data.time.max()*100, 0)
+                xaxis = 'progress_into_dive'
+                xaxis_title = 'Progress Through Dive (%)'
+
+            if 'depth' in scale.keys() and scale['depth']:
+                single_dive_data['dive_relative_depth_percentage'] = round(single_dive_data.depth/single_dive_data.depth.max()*100, 0)
+                yaxis = 'dive_relative_depth_percentage'
+                yaxis_title = 'Depth (%) Relative to the Dive'
             single_dive_data['cluster'] = rootgrp.cluster
             dive_data = dive_data.append(single_dive_data)
             rootgrp.close()
 
-    aggregated_data = dive_data.groupby(['progress_into_dive', 'cluster']).agg(['min','mean','max', 'median']).reset_index(level=[0,1])
+    aggregated_data = dive_data.groupby([xaxis, 'cluster']).agg(['min','mean','max', 'median', 'count']).reset_index(level=[0,1])
 
     plot_data = []
     colors = cl.scales[str(len(aggregated_data.cluster.unique()))]['qual']['Paired']
@@ -115,8 +128,8 @@ def cluster_summary_plot(folder, ipython_display=True, filename='index.html',tit
     for cluster in aggregated_data.cluster.unique():
 
         line_trace = go.Scatter(
-            x=aggregated_data[aggregated_data.cluster == cluster]['progress_into_dive'],
-            y=aggregated_data[aggregated_data.cluster == cluster]['depth']['min'],
+            x=aggregated_data[aggregated_data.cluster == cluster][xaxis],
+            y=aggregated_data[aggregated_data.cluster == cluster][yaxis]['min'],
             mode='lines',
             legendgroup= 'cluster'+str(cluster),
             name='Cluster '+str(cluster)+ " Min Depth",
@@ -125,8 +138,8 @@ def cluster_summary_plot(folder, ipython_display=True, filename='index.html',tit
         plot_data.append(line_trace)
 
         fill_trace = go.Scatter(
-            x=aggregated_data[aggregated_data.cluster == cluster]['progress_into_dive'],
-            y=aggregated_data[aggregated_data.cluster == cluster]['depth']['max'],
+            x=aggregated_data[aggregated_data.cluster == cluster][xaxis],
+            y=aggregated_data[aggregated_data.cluster == cluster][yaxis]['max'],
             fill='tonexty',
             mode='lines',
             legendgroup= 'cluster'+str(cluster),
@@ -137,8 +150,8 @@ def cluster_summary_plot(folder, ipython_display=True, filename='index.html',tit
         plot_data.append(fill_trace)
 
         line_trace = go.Scatter(
-            x=aggregated_data[aggregated_data.cluster == cluster]['progress_into_dive'],
-            y=aggregated_data[aggregated_data.cluster == cluster]['depth']['mean'],
+            x=aggregated_data[aggregated_data.cluster == cluster][xaxis],
+            y=aggregated_data[aggregated_data.cluster == cluster][yaxis]['mean'],
             mode='lines',
             legendgroup= 'cluster'+str(cluster),
             name='Cluster '+str(cluster)+ " Average Depth",
@@ -147,7 +160,7 @@ def cluster_summary_plot(folder, ipython_display=True, filename='index.html',tit
         plot_data.append(line_trace)
 
 
-    layout = go.Layout(title='Clusters',xaxis=dict(title='Progress Through Dive (%)', range=[0, aggregated_data.progress_into_dive.max()]), yaxis=dict(title='Depth in Meters',autorange='reversed'))
+    layout = go.Layout(title='Clusters',xaxis=dict(title=xaxis_title, range=[0, aggregated_data[xaxis].max()]), yaxis=dict(title=yaxis_title,autorange='reversed'))
     py.init_notebook_mode()
     fig = go.Figure(data=plot_data, layout=layout)
     if ipython_display:
