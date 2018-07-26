@@ -6,7 +6,14 @@ import os
 import xarray as xr
 import colorlover as cl
 
-def plot_from_nc(folder, cluster, dive_id, ipython_display=True, filename='index.html'):
+
+def plot_from_nc(folder, cluster, dive_id, ipython_display=True, type='dive', filename='index.html', at_depth_threshold=0.15):
+    if type == 'deepdive':
+        return plot_deepdive_from_nc(folder, cluster, dive_id, ipython_display, filename, at_depth_threshold)
+    else:
+        return plot_dive_from_nc(folder, cluster, dive_id, ipython_display, filename)
+
+def plot_dive_from_nc(folder, cluster, dive_id, ipython_display=True, filename='index.html'):
     """
     :param folder: the path to the results folder contianing the cluster folders
     :param cluster: the number of the cluster of the dive
@@ -69,6 +76,64 @@ def plot_from_nc(folder, cluster, dive_id, ipython_display=True, filename='index
     plot_data = [descent, bottom, ascent, surface]
     fig = go.Figure(data=plot_data, layout=layout)
 
+    if ipython_display:
+        py.init_notebook_mode()
+        return py.iplot(fig)
+    else:
+        return py.plot(fig, filename=filename)
+
+def plot_deepdive_from_nc(folder, cluster, dive_id, ipython_display=True, filename='index.html', at_depth_threshold=0.15):
+    """
+    :param folder: the path to the results folder contianing the cluster folders
+    :param cluster: the number of the cluster of the dive
+    :param dive_id: the number of of the dive
+    :param ipython_display: a boolean indicating whether or not to show the dive in a notebook
+    :param filename: the filename to save the dive to if it is not shown in a notebook
+
+    :return: a plotly line chart of the dive
+
+    """
+    dive_file = '%s/cluster_%d/dive_%05d.nc' % (folder,cluster,dive_id)
+    rootgrp = Dataset(dive_file)
+    data = pd.DataFrame()
+    data['time'] = rootgrp.variables['time'][:]
+    data['depth'] = rootgrp.variables['depth'][:]
+    units = rootgrp.variables['time'].units
+    at_depth_data = data[data.depth > (data.depth.max() - ((data.depth.max() - data.depth.min()) * at_depth_threshold))]
+    pre_depth_data = data[(data.depth < (data.depth.max() - ((data.depth.max() - data.depth.min()) * at_depth_threshold))) & (data.time <= at_depth_data.time.min())]
+    post_depth_data = data[(data.depth < (data.depth.max() - ((data.depth.max() - data.depth.min()) * at_depth_threshold)))& (data.time >= at_depth_data.time.max())]
+
+
+    pre_depth_data =  pre_depth_data.append(at_depth_data.head(1))
+    post_depth_data =  post_depth_data.append(at_depth_data.tail(1))
+    post_depth_data.sort_values('time', inplace=True)
+
+    pre_depth = go.Scatter(
+        x=num2date(pre_depth_data.time.tolist(), units=units),
+        y=pre_depth_data.depth,
+        mode='lines+markers',
+        name='Pre Depth'
+    )
+
+    at_depth = go.Scatter(
+        x=num2date(at_depth_data.time.tolist(), units=units),
+        y=at_depth_data.depth,
+        mode='lines+markers',
+        name='At Depth'
+    )
+
+    post_depth = go.Scatter(
+        x=num2date(post_depth_data.time.tolist(), units=units),
+        y=post_depth_data.depth,
+        mode='lines+markers',
+        name='Post Depth'
+    )
+
+    layout = go.Layout(title='Dive {} from Cluster {}'.format(rootgrp.dive_id,rootgrp.cluster),xaxis=dict(title='Time'),
+                        yaxis=dict(title='Depth in Meters',autorange='reversed'))
+    rootgrp.close()
+    plot_data = [pre_depth, post_depth, at_depth]
+    fig = go.Figure(data=plot_data, layout=layout)
     if ipython_display:
         py.init_notebook_mode()
         return py.iplot(fig)

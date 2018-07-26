@@ -24,17 +24,19 @@ class Dive:
     :ivar bottom_variance: the variance of the depth while the animal is at the bottom of the dive
     :ivar dive_variance: the variance of the depth for the entire dive.
     :ivar descent_velocity: the average velocity of the descent
-    :ivar ascent_velocity: the average velocity of the descent
+    :ivar ascent_velocity: the average velocity of the ascent
     :ivar peaks: the number of peaks found in the dive profile
     :ivar left_skew: a boolean of 1 or 0 indicating if the dive is left skewed
     :ivar right_skew: a boolean of 1 or 0 indicating if the dive is right skewed
     :ivar no_skew: a boolean of 1 or 0 indicating if the dive is not skewed
 
     """
-    def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}, surface_threshold=0):
+    def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}, surface_threshold=0, at_depth_threshold=0.15):
         """
         :param data: the time and depth values for the dive
+        :param columns: a dictionary of column mappings for the data
         :param surface_threshold: minmum depth to constitute a dive
+        :param at_depth_threshold: a value from 0 - 1 indicating distance from the bottom of the dive at which the animal is considered to be at depth
         """
 
         if data[columns['time']].dtypes != np.float64:
@@ -53,8 +55,8 @@ class Dive:
         self.bottom_start = None
         self.td_bottom_duration = None
         self.bottom_difference = None
-        self.td_descent_duration = self.get_descent_duration()
-        self.td_ascent_duration = self.get_ascent_duration()
+        self.td_descent_duration = self.get_descent_duration(at_depth_threshold)
+        self.td_ascent_duration = self.get_ascent_duration(at_depth_threshold)
         self.td_surface_duration = self.get_surface_duration()
         self.bottom_variance = self.set_bottom_variance()
         self.descent_velocity = self.get_descent_velocity()
@@ -71,14 +73,15 @@ class Dive:
     # Calculate and set the descent duration.
     # Iterates through the start of the dive looking for a change in the standard deviation.
     # Once the change is found the descent duration is calculated using that point.
-    def get_descent_duration(self):
+    def get_descent_duration(self, at_depth_threshold=0.15):
         """
+        :param at_depth_threshold: a value from 0 - 1 indicating distance from the bottom of the dive at which the animal is considered to be at depth
         :return: the descent duration in seconds
         """
         std_dev = 0
         for i, r in self.data.iterrows():
             next_std_dev = np.std(self.data.loc[:i, 'depth'])
-            if (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i + 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * 0.85):
+            if (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i + 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * (1-at_depth_threshold)):
                 self.bottom_start = self.data.loc[i, 'time']
                 return (self.data.loc[i, 'time'] - self.data.loc[0, 'time'])
                 break
@@ -89,10 +92,11 @@ class Dive:
     # Calculate and set the ascent duration and bottom duration.
     # Iterates through the end of the dive looking for changes in standard deviation.
     # Once the change is found the ascent duration and bottom duration are set.
-    def get_ascent_duration(self):
+    def get_ascent_duration(self, at_depth_threshold=0.15):
         """
         This function also sets the bottom duration.
 
+        :param at_depth_threshold: a value from 0 - 1 indicating distance from the bottom of the dive at which the animal is considered to be at depth
         :return: the ascent duration in seconds
         """
         end_index = -1
@@ -107,7 +111,7 @@ class Dive:
         # Finds the the change in standard deviation to determine the end of the bottom of the divide.
         for i, r in self.data[:end_index].sort_values('time', ascending=False).iterrows():
             next_std_dev = np.std(self.data.loc[i:end_index, 'depth'])
-            if ((next_std_dev < std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i - 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * 0.85)) or self.data.loc[i, 'depth'] > (self.max_depth * 0.90):
+            if ((next_std_dev < std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i - 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * (1-at_depth_threshold))) or self.data.loc[i, 'depth'] > (self.max_depth * 0.90):
                 self.td_bottom_duration = self.data.loc[i,'time'] - self.bottom_start
                 if(end_index > 0):
                     return (self.data.loc[end_index, 'time'] - self.data.loc[i, 'time'])
@@ -174,7 +178,7 @@ class Dive:
 
     def set_skew(self):
         """
-        :return: a string of either right or left
+        Sets the objects skew as left, right, or no skew
         """
         if self.td_ascent_duration > self.td_descent_duration:
             self.right_skew = 1

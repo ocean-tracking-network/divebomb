@@ -32,7 +32,7 @@ pd.options.mode.chained_assignment = None
 units = 'seconds since 1970-01-01'
 
 
-def display_dive(index, data, starts, type='Dive', surface_threshold=0):
+def display_dive(index, data, starts, type='Dive', surface_threshold=0,  at_depth_threshold=0.15):
     """
     This function just takes the index, the data, and the starts and displays the dive using plotly.
     It is used as a helper method for viewing the dives if ``ipython_display`` is ``True`` in ``profile_dives()``.
@@ -48,9 +48,9 @@ def display_dive(index, data, starts, type='Dive', surface_threshold=0):
     index = int(index)
     print(str(starts.loc[index, 'start_block']) + ":" + str(starts.loc[index, 'end_block']))
     if type == 'DeepDive':
-        dive_profile = DeepDive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']])
+        dive_profile = DeepDive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']], at_depth_threshold=at_depth_threshold)
     else:
-        dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']],  surface_threshold=surface_threshold)
+        dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']],  surface_threshold=surface_threshold, at_depth_threshold=at_depth_threshold)
     return dive_profile.plot()
 
 def cluster_dives(dives):
@@ -68,17 +68,6 @@ def cluster_dives(dives):
     """
     # Subset the data
     dataset = dives.fillna(0)
-    # dataset = dataset[['ascent_velocity',
-    #                   'descent_velocity',
-    #                   'bottom_variance',
-    #                   'td_ascent_duration',
-    #                   'td_bottom_duration',
-    #                   'td_descent_duration',
-    #                   'dive_duration',
-    #                   'peaks',
-    #                   'no_skew',
-    #                   'left_skew',
-    #                   'right_skew']]
     dataset.drop(['dive_start', 'dive_end'], axis=1, inplace=True)
     if 'surface_threshold' in dataset.columns:
         dataset.drop('surface_threshold', axis=1, inplace=True)
@@ -257,7 +246,7 @@ def get_dive_starting_points(data, is_surfacing_animal = True, dive_detection_se
 
 def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
                     is_surfacing_animal = True, dive_detection_sensitivity=None, minimal_time_between_dives = 10,
-                    surface_threshold=0, ipython_display_mode=False):
+                    surface_threshold=0, ipython_display_mode=False, at_depth_threshold=0.15):
     """
     Calls the other functions to split and profile each dive. This function uses the
     ``divebomb.Dive`` class to prfoile the dives.
@@ -288,65 +277,23 @@ def profile_dives(data, folder=None, columns={'depth': 'depth', 'time': 'time'},
         py.init_notebook_mode()
         return interact(display_dive, index=widgets.IntSlider(min=0, max=starts.index.max(), step=1, value=0,
                         layout=Layout(width='100%')), data=fixed(data), starts=fixed(starts), type=fixed(type),
-                        surface_threshold=fixed(surface_threshold))
+                        surface_threshold=fixed(surface_threshold), at_depth_threshold=fixed(at_depth_threshold))
     elif folder is None:
         return 'Error: You must provide a folder name or set ipython_display_mode=True'
     else:
         dives = pd.DataFrame()
         if type == 'DeepDive':
             for index, row in starts.iterrows():
-                dive_profile = DeepDive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']])
+                dive_profile = DeepDive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']], at_depth_threshold=at_depth_threshold)
                 dives = dives.append(dive_profile.to_dict(), ignore_index=True)
         else:
             for index, row in starts.iterrows():
-                dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']], surface_threshold=surface_threshold)
+                dive_profile = Dive(data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']], surface_threshold=surface_threshold,  at_depth_threshold=at_depth_threshold)
                 dives = dives.append(dive_profile.to_dict(), ignore_index=True)
 
         dives, loadings, pca_output_matrix = cluster_dives(dives)
 
         export_all_data(folder, data, dives, loadings, pca_output_matrix)
-        # # Export the dives to netCDF
-        # if os.path.exists(folder):
-        #     shutil.rmtree(folder)
-        # os.makedirs(folder)
-        #
-        # for cluster in dives.cluster.unique():
-        #     os.makedirs(folder+'/cluster_'+str(cluster))
-        #
-        # # export the dives
-        # data.set_index('time',inplace=True, drop=False)
-        # dives.dive_start = dives.dive_start.astype(int)
-        # dives.dive_end = dives.dive_end.astype(int)
-        # data.time = data.time.astype(int)
-        # export_dives(dives ,data, folder)
-        #
-        # # Export the PCA Matrices
-        # pca_group = Dataset(folder+'/pca_matrices_data.nc', 'w')
-        # pca_loadings = pca_group.createGroup('pca_loadings')
-        # pca_output = pca_group.createGroup('pca_output')
-        #
-        # pca_group.createDimension('order', None)
-        #
-        # str_max = (loadings.component.str.len()).max()
-        # components = pca_loadings.createVariable("component",str,('order',), zlib=True)
-        # components = np.array(loadings.component.tolist(), 'S'+str(int(str_max)))
-        # pc={}
-        # for column in loadings.iloc[:, 1:].columns:
-        #     pc[column] = pca_loadings.createVariable(column,'f8',('order',),zlib=True)
-        #     pc[column][:] = loadings[column].tolist()
-        #
-        # for column in pca_output_matrix.columns:
-        #     pc[column] = pca_output.createVariable(column,'f8',('order',),zlib=True)
-        #     pc[column][:] = loadings[column].tolist()
-        # pca_group.close()
-        #
-        # # Write an overall summary netcdf
-        # xarray_data = xr.Dataset(dives)
-        # xarray_data.variables['bottom_start'].attrs = {'units':units}
-        # xarray_data.variables['dive_end'].attrs = {'units':units}
-        # xarray_data.variables['dive_start'].attrs = {'units':units}
-        # xarray_data.to_netcdf(os.path.join(folder, "all_profiled_dives.nc"), mode='w')
-        # xarray_data.close()
 
 
         # Return the three datasets back to the user
