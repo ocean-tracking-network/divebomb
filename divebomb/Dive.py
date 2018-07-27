@@ -1,15 +1,16 @@
-from datetime import datetime, timedelta
-import pandas as pd
-import numpy as np
-import plotly.offline as py
-import plotly.graph_objs as go
 import copy
 import sys
+from datetime import datetime, timedelta
 
-from netCDF4 import Dataset, num2date, date2num
+import numpy as np
+import pandas as pd
 import peakutils as pk
+import plotly.graph_objs as go
+import plotly.offline as py
+from netCDF4 import Dataset, date2num, num2date
 
 units = 'seconds since 1970-01-01'
+
 
 class Dive:
     """
@@ -31,7 +32,15 @@ class Dive:
     :ivar no_skew: a boolean of 1 or 0 indicating if the dive is not skewed
 
     """
-    def __init__(self, data, columns={'depth': 'depth', 'time': 'time'}, surface_threshold=0, at_depth_threshold=0.15):
+
+    def __init__(self,
+                 data,
+                 columns={
+                     'depth': 'depth',
+                     'time': 'time'
+                 },
+                 surface_threshold=0,
+                 at_depth_threshold=0.15):
         """
         :param data: the time and depth values for the dive
         :param columns: a dictionary of column mappings for the data
@@ -40,7 +49,7 @@ class Dive:
         """
 
         if data[columns['time']].dtypes != np.float64:
-            data.time = date2num(data.time.tolist(),units=units)
+            data.time = date2num(data.time.tolist(), units=units)
 
         self.data = data.sort_values('time').reset_index(drop=True)
         self.surface_threshold = surface_threshold
@@ -55,13 +64,15 @@ class Dive:
         self.bottom_start = None
         self.td_bottom_duration = None
         self.bottom_difference = None
-        self.td_descent_duration = self.get_descent_duration(at_depth_threshold)
+        self.td_descent_duration = self.get_descent_duration(
+            at_depth_threshold)
         self.td_ascent_duration = self.get_ascent_duration(at_depth_threshold)
         self.td_surface_duration = self.get_surface_duration()
         self.bottom_variance = self.set_bottom_variance()
         self.descent_velocity = self.get_descent_velocity()
         self.ascent_velocity = self.get_ascent_velocity()
-        self.td_total_duration = self.td_ascent_duration+self.td_bottom_duration+self.td_descent_duration+self.td_surface_duration
+        self.td_total_duration = self.td_ascent_duration + self.td_bottom_duration + \
+            self.td_descent_duration + self.td_surface_duration
         self.td_dive_duration = self.td_total_duration - self.td_surface_duration
         self.no_skew = 0
         self.right_skew = 0
@@ -69,10 +80,10 @@ class Dive:
         self.set_skew()
         self.peaks = self.get_peaks()
 
-
     # Calculate and set the descent duration.
     # Iterates through the start of the dive looking for a change in the standard deviation.
     # Once the change is found the descent duration is calculated using that point.
+
     def get_descent_duration(self, at_depth_threshold=0.15):
         """
         :param at_depth_threshold: a value from 0 - 1 indicating distance from the bottom of the dive at which the animal is considered to be at depth
@@ -81,7 +92,10 @@ class Dive:
         std_dev = 0
         for i, r in self.data.iterrows():
             next_std_dev = np.std(self.data.loc[:i, 'depth'])
-            if (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i + 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * (1-at_depth_threshold)):
+            if (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >=
+                    self.data.loc[(i + 1), 'depth']
+                ) and self.data.loc[i, 'depth'] > (self.max_depth *
+                                                   (1 - at_depth_threshold)):
                 self.bottom_start = self.data.loc[i, 'time']
                 return (self.data.loc[i, 'time'] - self.data.loc[0, 'time'])
                 break
@@ -109,26 +123,34 @@ class Dive:
                 break
 
         # Finds the the change in standard deviation to determine the end of the bottom of the divide.
-        for i, r in self.data[:end_index].sort_values('time', ascending=False).iterrows():
+        for i, r in self.data[:end_index].sort_values(
+                'time', ascending=False).iterrows():
             next_std_dev = np.std(self.data.loc[i:end_index, 'depth'])
-            if ((next_std_dev < std_dev or self.data.loc[i, 'depth'] >= self.data.loc[(i - 1), 'depth']) and self.data.loc[i, 'depth'] > (self.max_depth * (1-at_depth_threshold))) or self.data.loc[i, 'depth'] > (self.max_depth * 0.90):
-                self.td_bottom_duration = self.data.loc[i,'time'] - self.bottom_start
-                if(end_index > 0):
-                    return (self.data.loc[end_index, 'time'] - self.data.loc[i, 'time'])
+            if ((next_std_dev < std_dev or
+                 self.data.loc[i, 'depth'] >= self.data.loc[(i - 1), 'depth'])
+                    and self.data.loc[i, 'depth'] >
+                (self.max_depth * (1 - at_depth_threshold))
+                ) or self.data.loc[i, 'depth'] > (self.max_depth * 0.90):
+                self.td_bottom_duration = self.data.loc[i,
+                                                        'time'] - self.bottom_start
+                if (end_index > 0):
+                    return (self.data.loc[end_index, 'time'] -
+                            self.data.loc[i, 'time'])
 
                 break
             else:
                 std_dev = next_std_dev
         return self.td_ascent_duration
 
-
     # Get the surface duration by subtracting the ascent, descent, and bottom durations.
+
     def get_surface_duration(self):
         """
         :return: the surface duration in seconds
         """
         duration = self.data.time.max() - self.data.time.min()
-        self.td_surface_duration = duration - self.td_descent_duration - self.td_bottom_duration - self.td_ascent_duration
+        self.td_surface_duration = duration - self.td_descent_duration - \
+            self.td_bottom_duration - self.td_ascent_duration
         return self.td_surface_duration
 
     # Calculate the descent velocity Delta Depth/Delta Time
@@ -139,7 +161,9 @@ class Dive:
         self.descent_velocity = 0
         descent_data = self.data[self.data.time <= self.bottom_start]
         if self.td_descent_duration > 0:
-            self.descent_velocity = (descent_data.depth.max() - descent_data.depth.min()) / self.td_descent_duration
+            self.descent_velocity = (
+                descent_data.depth.max() -
+                descent_data.depth.min()) / self.td_descent_duration
         return self.descent_velocity
 
     # Calculate the ascent velocity Delta Depth/Delta Time
@@ -150,7 +174,9 @@ class Dive:
         self.ascent_velocity = 0
         ascent_data = self.data[self.data.time >= (
             self.bottom_start + self.td_bottom_duration)]
-        self.ascent_velocity = (ascent_data.depth.max() - ascent_data.depth.min()) / self.td_ascent_duration
+        self.ascent_velocity = (
+            ascent_data.depth.max() -
+            ascent_data.depth.min()) / self.td_ascent_duration
         return self.ascent_velocity
 
     # Calculate and set the bottom variance
@@ -160,11 +186,15 @@ class Dive:
 
         :return: the standard variance in depth during the bottom portion of the dive in meters
         """
-        dive_data = self.data[(self.data.time >= self.dive_start) & (self.data.time <= (self.bottom_start + self.td_bottom_duration + self.td_ascent_duration))]
+        dive_data = self.data[(self.data.time >= self.dive_start) & (
+            self.data.time <= (self.bottom_start + self.td_bottom_duration +
+                               self.td_ascent_duration))]
         self.dive_variance = np.std(dive_data.depth)
-        bottom_data = self.data[(self.data.time >= self.bottom_start) & (self.data.time <= (self.bottom_start + self.td_bottom_duration))]
+        bottom_data = self.data[(self.data.time >= self.bottom_start) & (
+            self.data.time <= (self.bottom_start + self.td_bottom_duration))]
         self.bottom_variance = np.std(bottom_data.depth)
-        self.bottom_difference = bottom_data.depth.max() - bottom_data.depth.min()
+        self.bottom_difference = bottom_data.depth.max(
+        ) - bottom_data.depth.min()
         return self.bottom_variance
 
     # Calculate and set total dive variance
@@ -172,7 +202,9 @@ class Dive:
         """
         :return: the standard variancet in depth during dive in meters
         """
-        dive_data = self.data[(self.data.time >= self.dive_start) & (self.data.time <= (self.bottom_start + self.td_bottom_duration + self.td_ascent_duration))]
+        dive_data = self.data[(self.data.time >= self.dive_start) & (
+            self.data.time <= (self.bottom_start + self.td_bottom_duration +
+                               self.td_ascent_duration))]
         self.dive_variance = np.std(dive_data.depth)
         return self.dive_variance
 
@@ -191,15 +223,18 @@ class Dive:
         """
         :return: number of peaks found within a dive
         """
-        peak_thres = (1 - (self.data.depth.mean() - (self.surface_threshold))/ self.data.depth.max())
-        peaks = pk.indexes(self.data.depth*(-1), thres=min([0.2, peak_thres]), min_dist=max((10/self.data.time.diff().mean()),3))
+        peak_thres = (1 - (self.data.depth.mean() -
+                           (self.surface_threshold)) / self.data.depth.max())
+        peaks = pk.indexes(
+            self.data.depth * (-1),
+            thres=min([0.2, peak_thres]),
+            min_dist=max((10 / self.data.time.diff().mean()), 3))
         self.peaks = len(peaks)
         return self.peaks
 
     # Return the dictionary of the object
     def to_dict(self):
         """
-
         :return: a dictionary of the dive profile
         """
         dive = copy.deepcopy(self.__dict__)
@@ -208,9 +243,7 @@ class Dive:
 
     # Used to plot the dive
     def plot(self):
-
         """
-
         :return: a plotly graph showing the phases of the dive
         """
         # Get and set the descent data
@@ -219,8 +252,7 @@ class Dive:
             x=num2date(descent_data.time.tolist(), units=units),
             y=descent_data.depth,
             mode='lines+markers',
-            name='Descent'
-        )
+            name='Descent')
 
         # Get and set the bottom data
         bottom_data = self.data[(self.data.time >= self.bottom_start) & (
@@ -229,18 +261,18 @@ class Dive:
             x=num2date(bottom_data.time.tolist(), units=units),
             y=bottom_data.depth,
             mode='lines+markers',
-            name='Bottom'
-        )
+            name='Bottom')
 
         # Get and set the ascent data
-        ascent_data = self.data[(self.data.time >= (self.bottom_start + self.td_bottom_duration)) & (
-            self.data.time <= (self.data.time.max() - self.td_surface_duration))]
+        ascent_data = self.data[
+            (self.data.time >= (self.bottom_start + self.td_bottom_duration))
+            & (self.data.time <=
+               (self.data.time.max() - self.td_surface_duration))]
         ascent = go.Scatter(
             x=num2date(ascent_data.time.tolist(), units=units),
             y=ascent_data.depth,
             mode='lines+markers',
-            name='Ascent'
-        )
+            name='Ascent')
 
         # Get and set the surface data
         surface_data = self.data[self.data.time >= (
@@ -250,11 +282,13 @@ class Dive:
             x=num2date(surface_data.time.tolist(), units=units),
             y=surface_data.depth,
             mode='lines+markers',
-            name='Surface'
-        )
+            name='Surface')
 
-        layout = go.Layout(title='Dive starting at {}'.format(num2date(self.dive_start, units=units)),
-                           xaxis=dict(title='Time'), yaxis=dict(title='Depth in Meters',autorange='reversed'))
+        layout = go.Layout(
+            title='Dive starting at {}'.format(
+                num2date(self.dive_start, units=units)),
+            xaxis=dict(title='Time'),
+            yaxis=dict(title='Depth in Meters', autorange='reversed'))
         plot_data = [descent, bottom, ascent, surface]
         fig = go.Figure(data=plot_data, layout=layout)
         return py.iplot(fig)
