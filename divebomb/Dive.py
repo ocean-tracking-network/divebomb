@@ -17,18 +17,25 @@ class Dive:
     :ivar max_depth: the max depth in the dive
     :ivar dive_start: the timestamp of the first point in the dive
     :ivar dive_end: the timestamp of the last point in the dive
-    :ivar bottom_start: the timestamp of the first point in the dive when the animal is at depth
-    :ivar td_bottom_duration: a timedelta object containing the duration of the time the animal is at depth in seconds
-    :ivar td_descent_duration: a timedelta object containing the duration of the time the animal is descending in seconds
-    :ivar td_ascent_duration: a timedelta object containing the duration of the time the animal is ascending in seconds
-    :ivar td_surface_duration: a timedelta object containing the duration of the time the animal is at the surface in seconds
-    :ivar bottom_variance: the variance of the depth while the animal is at the bottom of the dive
+    :ivar bottom_start: the timestamp of the first point in the dive when the
+        animal is at depth
+    :ivar td_bottom_duration: a timedelta object containing the duration of the
+        time the animal is at depth in seconds
+    :ivar td_descent_duration: a timedelta object containing the duration of
+        the time the animal is descending in seconds
+    :ivar td_ascent_duration: a timedelta object containing the duration of the
+        time the animal is ascending in seconds
+    :ivar td_surface_duration: a timedelta object containing the duration of
+        the time the animal is at the surface in seconds
+    :ivar bottom_variance: the variance of the depth while the animal is at the
+        bottom of the dive
     :ivar dive_variance: the variance of the depth for the entire dive.
     :ivar descent_velocity: the average velocity of the descent
     :ivar ascent_velocity: the average velocity of the ascent
     :ivar peaks: the number of peaks found in the dive profile
     :ivar left_skew: a boolean of 1 or 0 indicating if the dive is left skewed
-    :ivar right_skew: a boolean of 1 or 0 indicating if the dive is right skewed
+    :ivar right_skew: a boolean of 1 or 0 indicating if the dive is right
+        skewed
     :ivar no_skew: a boolean of 1 or 0 indicating if the dive is not skewed
 
     """
@@ -45,7 +52,9 @@ class Dive:
         :param data: the time and depth values for the dive
         :param columns: a dictionary of column mappings for the data
         :param surface_threshold: minmum depth to constitute a dive
-        :param at_depth_threshold: a value from 0 - 1 indicating distance from the bottom of the dive at which the animal is considered to be at depth
+        :param at_depth_threshold: a value from 0 - 1 indicating distance from
+            the bottom of the dive at which the animal is considered to be at
+            depth
         """
 
         if data[columns['time']].dtypes != np.float64:
@@ -71,22 +80,22 @@ class Dive:
         self.bottom_variance = self.set_bottom_variance()
         self.descent_velocity = self.get_descent_velocity()
         self.ascent_velocity = self.get_ascent_velocity()
-        self.td_total_duration = self.td_ascent_duration + self.td_bottom_duration + \
-            self.td_descent_duration + self.td_surface_duration
-        self.td_dive_duration = self.td_total_duration - self.td_surface_duration
+        self.td_total_duration = self.td_ascent_duration +          \
+            self.td_bottom_duration + self.td_descent_duration +    \
+            self.td_surface_duration
+        self.td_dive_duration = self.td_total_duration -    \
+            self.td_surface_duration
         self.no_skew = 0
         self.right_skew = 0
         self.left_skew = 0
         self.set_skew()
         self.peaks = self.get_peaks()
 
-    # Calculate and set the descent duration.
-    # Iterates through the start of the dive looking for a change in the standard deviation.
-    # Once the change is found the descent duration is calculated using that point.
-
     def get_descent_duration(self, at_depth_threshold=0.15):
         """
-        :param at_depth_threshold: a value from 0 - 1 indicating distance from the bottom of the dive at which the animal is considered to be at depth
+        :param at_depth_threshold: a value from 0 - 1 indicating distance from
+            the bottom of the dive at which the animal is considered to be at
+            depth
         :return: the descent duration in seconds
         """
         std_dev = 0
@@ -103,14 +112,13 @@ class Dive:
                 std_dev = next_std_dev
         return self.td_descent_duration
 
-    # Calculate and set the ascent duration and bottom duration.
-    # Iterates through the end of the dive looking for changes in standard deviation.
-    # Once the change is found the ascent duration and bottom duration are set.
     def get_ascent_duration(self, at_depth_threshold=0.15):
         """
         This function also sets the bottom duration.
 
-        :param at_depth_threshold: a value from 0 - 1 indicating distance from the bottom of the dive at which the animal is considered to be at depth
+        :param at_depth_threshold: a value from 0 - 1 indicating distance from
+            the bottom of the dive at which the animal is considered to be at
+            depth
         :return: the ascent duration in seconds
         """
         end_index = -1
@@ -122,17 +130,19 @@ class Dive:
                 end_index = i
                 break
 
-        # Finds the the change in standard deviation to determine the end of the bottom of the divide.
+        # Finds the the change in standard deviation to determine the end of
+        # the bottom of the divide.
         for i, r in self.data[:end_index].sort_values(
                 'time', ascending=False).iterrows():
             next_std_dev = np.std(self.data.loc[i:end_index, 'depth'])
             if ((next_std_dev < std_dev or
-                 self.data.loc[i, 'depth'] >= self.data.loc[(i - 1), 'depth'])
-                    and self.data.loc[i, 'depth'] >
-                (self.max_depth * (1 - at_depth_threshold))
-                ) or self.data.loc[i, 'depth'] > (self.max_depth * 0.90):
-                self.td_bottom_duration = self.data.loc[i,
-                                                        'time'] - self.bottom_start
+                 self.data.loc[i, 'depth'] >=
+                 self.data.loc[(i - 1), 'depth']) and
+                    self.data.loc[i, 'depth'] >
+                    (self.max_depth * (1 - at_depth_threshold))) or     \
+                    self.data.loc[i, 'depth'] > (self.max_depth * 0.90):
+                self.td_bottom_duration = self.data.loc[i, 'time'] -    \
+                    self.bottom_start
                 if (end_index > 0):
                     return (self.data.loc[end_index, 'time'] -
                             self.data.loc[i, 'time'])
@@ -142,8 +152,8 @@ class Dive:
                 std_dev = next_std_dev
         return self.td_ascent_duration
 
-    # Get the surface duration by subtracting the ascent, descent, and bottom durations.
-
+    # Get the surface duration by subtracting the ascent, descent, and bottom
+    # durations.
     def get_surface_duration(self):
         """
         :return: the surface duration in seconds
@@ -184,7 +194,8 @@ class Dive:
         """
         This function also set total dive variance
 
-        :return: the standard variance in depth during the bottom portion of the dive in meters
+        :return: the standard variance in depth during the bottom portion of
+            the dive in meters
         """
         dive_data = self.data[(self.data.time >= self.dive_start) & (
             self.data.time <= (self.bottom_start + self.td_bottom_duration +
@@ -265,9 +276,11 @@ class Dive:
 
         # Get and set the ascent data
         ascent_data = self.data[
-            (self.data.time >= (self.bottom_start + self.td_bottom_duration))
-            & (self.data.time <=
-               (self.data.time.max() - self.td_surface_duration))]
+            (self.data.time >=
+             (self.bottom_start + self.td_bottom_duration)) &
+            (self.data.time <=
+             (self.data.time.max() - self.td_surface_duration))
+        ]
         ascent = go.Scatter(
             x=num2date(ascent_data.time.tolist(), units=units),
             y=ascent_data.depth,

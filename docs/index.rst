@@ -14,5 +14,6 @@
    examples
    divebomb_functions
    dive
+   deepdive
    preprocessing
    plotting

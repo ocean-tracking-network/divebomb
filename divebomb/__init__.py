@@ -1,11 +1,3 @@
-__author__ = "Alex Nunes"
-__credits__ = ["Alex Nunes", "Fran Broell"]
-__license__ = "GPLv2"
-__version__ = "0.3.0"
-__maintainer__ = "Alex Nunes"
-__email__ = "anunes@dal.ca"
-__status__ = "Development"
-
 import __future__
 
 import math
@@ -29,6 +21,14 @@ from sklearn.preprocessing import StandardScaler
 from divebomb.DeepDive import DeepDive
 from divebomb.Dive import Dive
 
+__author__ = "Alex Nunes"
+__credits__ = ["Alex Nunes", "Fran Broell"]
+__license__ = "GPLv2"
+__version__ = "0.3.0"
+__maintainer__ = "Alex Nunes"
+__email__ = "anunes@dal.ca"
+__status__ = "Development"
+
 pd.options.mode.chained_assignment = None
 
 units = 'seconds since 1970-01-01'
@@ -41,15 +41,19 @@ def display_dive(index,
                  surface_threshold=0,
                  at_depth_threshold=0.15):
     """
-    This function just takes the index, the data, and the starts and displays the dive using plotly.
-    It is used as a helper method for viewing the dives if ``ipython_display`` is ``True`` in ``profile_dives()``.
+    This function just takes the index, the data, and the starts and displays
+    the dive using plotly. It is used as a helper method for viewing the dives
+    if ``ipython_display`` is ``True`` in ``profile_dives()``.
 
     :param index: the index of the dive profile to plot
     :param data: the dataframe of the original dive data
     :param starts: the dataframe of the dive starts
-    :param type: s tring that indicates using either the ``Dive`` or ``DeepDive`` class
-    :param surface_threshold: the calculated surface threshold based on animal length
-    :param at_depth_threshold: a value from 0 - 1 indicating distance from the bottom of the dive at which the animal is considered to be at depth
+    :param type: s tring that indicates using either the ``Dive`` or
+        ``DeepDive`` class
+    :param surface_threshold: the calculated surface threshold based on
+        animal length
+    :param at_depth_threshold: a value from 0 - 1 indicating distance from the
+        bottom of the dive at which the animal is considered to be at depth
     :return: a dive plot from plotly
     """
 
@@ -143,8 +147,10 @@ def export_dives(dives, data, folder, is_surface_events=False):
 
     :param dives: a Pandas DataFrame of dive profiles to export
     :param data: a Pandas dataframe of the original dive data
-    :param folder: a string indicating the parent folder for the files and sub folders
-    :param is_surface_events: a boolean indicating if the dive profiles are entirely surface events
+    :param folder: a string indicating the parent folder for the files and sub
+        folders
+    :param is_surface_events: a boolean indicating if the dive profiles are
+        entirely surface events
 
     """
     for index, dive in dives.iterrows():
@@ -176,11 +182,15 @@ def export_dives(dives, data, folder, is_surface_events=False):
 
 def export_all_data(folder, data, dives, loadings, pca_output_matrix):
     """
-    :param folder: the path to export all files to, the folder will be overwritten
+    :param folder: the path to export all files to, the folder will be
+        overwritten
     :param folder: a Pandas DataFrame of continuous time and depth data
-    :param dives: a Pandas DataFrame of the dive profiles and clusters, usually generated from ``profile_dives()``
-    :param loadings: a Pandas DataFrame of the Principle Component Analysis loadings
-    :param pca_output_matrix: a Pandas DataFrame of the Principle Component Analysis results
+    :param dives: a Pandas DataFrame of the dive profiles and clusters, usually
+        generated from ``profile_dives()``
+    :param loadings: a Pandas DataFrame of the Principle Component Analysis
+        loadings
+    :param pca_output_matrix: a Pandas DataFrame of the Principle Component
+        Analysis results
     """
     # Export the dives to netCDF
     if os.path.exists(folder):
@@ -236,7 +246,8 @@ def clean_dive_data(data, columns={'depth': 'depth', 'time': 'time'}):
     :param data: a Pandas DataFrame consisting of a time and a depth column
     :param columns: column renaming dictionary if needed
 
-    :return: a Pandas DataFrame with ``time`` in seconds since 1970-10-01 and ``depth``
+    :return: a Pandas DataFrame with ``time`` in seconds since 1970-10-01 and
+        ``depth``
     """
     for k, v in columns.items():
         if k != v:
@@ -261,10 +272,14 @@ def get_dive_starting_points(data,
                              }):
     """
     :param data: a dataframe needing a time and a depth column
-    :param is_surfacing_animal: a boolean indicating whether it's an animal that is gaurantedd to surface between dives
-    :param dive_detection_sensitivity: a value bteween 0 and 1 indicating the peak detection threshold, the lower the value the deeper the threshold
-    :param minimal_time_between_dives: the minimum time in seconds that needs to occur before there can be a new dive segement
-    :param surface_threshold: the threshold at which is considered surface for surfacing animals, default is 0
+    :param is_surfacing_animal: a boolean indicating whether it's an animal
+        that is gaurantedd to surface between dives
+    :param dive_detection_sensitivity: a value bteween 0 and 1 indicating the
+        peak detection threshold, the lower the value the deeper the threshold
+    :param minimal_time_between_dives: the minimum time in seconds that needs
+        to occur before there can be a new dive segement
+    :param surface_threshold: the threshold at which is considered surface for
+        surfacing animals, default is 0
     :param columns: column renaming dictionary if needed
     """
 
@@ -290,7 +305,8 @@ def get_dive_starting_points(data,
     starts.end_block.fillna(data.index.max(), inplace=True)
     starts.end_block = starts.end_block.astype(int)
 
-    # This line specidifcally looks for larg time gaps in the data and ignores them using the index
+    # This line specidifcally looks for larg time gaps in the data and ignores
+    # them using the index
     starts.loc[starts.time_diff.shift(-1) > starts.time_diff.mode()[0],
                'end_block'] = starts.end_block - 1
 
@@ -327,19 +343,25 @@ def profile_dives(data,
                   ipython_display_mode=False,
                   at_depth_threshold=0.15):
     """
-    Calls the other functions to split and profile each dive. This function uses the
-    ``divebomb.Dive`` or ``divebomb.DeepDive`` class to profile the dives.
+    Calls the other functions to split and profile each dive. This function
+    uses the ``divebomb.Dive`` or ``divebomb.DeepDive`` class to profile the
+    dives.
 
     :param data: a dataframe needing a time and a depth column
     :param folder: a parent folder to write out to
     :param columns: column renaming dictionary if needed
-    :param is_surfacing_animal: a boolean indicating whether it's an animal that is gauranteed to surface between dives
-    :param dive_detection_sensitivity: a value bteween 0 and 1 indicating the peak detection threshold, the lower the value the deeper the threshold
-    :param minimal_time_between_dives: the minimum time in seconds that needs to occur before there can be a new dive segement
-    :param surface_threshold: the threshold at which is considered surface for surfacing animals, default is 0
+    :param is_surfacing_animal: a boolean indicating whether it's an animal
+        that is gauranteed to surface between dives
+    :param dive_detection_sensitivity: a value bteween 0 and 1 indicating the
+        peak detection threshold, the lower the value the deeper the threshold
+    :param minimal_time_between_dives: the minimum time in seconds that needs
+        to occur before there can be a new dive segement
+    :param surface_threshold: the threshold at which is considered surface for
+        surfacing animals, default is 0
     :param ipython_display_mode: whether or not to display the dives
 
-    :return: three dataframes for the dive profiles, start blocks, and the original data
+    :return: three dataframes for the dive profiles, start blocks, and the
+        original data
     """
 
     starts = get_dive_starting_points(
@@ -354,7 +376,8 @@ def profile_dives(data,
     if not is_surfacing_animal:
         type = 'DeepDive'
 
-    # Use the interact widget to display the dives using a slider to indicate the index.
+    # Use the interact widget to display the dives using a slider to indicate
+    # the index.
     if ipython_display_mode:
         py.init_notebook_mode()
         return interact(
@@ -371,7 +394,9 @@ def profile_dives(data,
             surface_threshold=fixed(surface_threshold),
             at_depth_threshold=fixed(at_depth_threshold))
     elif folder is None:
-        return 'Error: You must provide a folder name or set ipython_display_mode=True'
+        return 'Error: You must provide a folder name or set \
+                ipython_display_mode=True'
+
     else:
         dives = pd.DataFrame()
         if type == 'DeepDive':

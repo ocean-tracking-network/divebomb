@@ -18,22 +18,35 @@ class DeepDive:
     :ivar min_depth: the max depth in the dive
     :ivar dive_start: the timestamp of the first point in the dive
     :ivar dive_end: the timestamp of the last point in the dive
-    :ivar td_total_duration: a timedelta (in seconds since 1970-01-01) containing the duration of the dive
+    :ivar td_total_duration: a timedelta (in seconds since 1970-01-01)
+        containing the duration of the dive
     :ivar depth_variance: the variance of the depth for the entire dive.
-    :ivar average_vertical_velocity: the mean velocity of the animal over the entire dive with negative value indicating upward movement
-    :ivar average_descent_velocity: the average velocity of any downward movement as positive value
-    :ivar average_ascent_velocity: the average velocity of any upward movement as positive value
-    :ivar number_of_descent_transitions: the number of times and animal moves descends any distance in the dive period
-    :ivar number_of_ascent_transitions: the number of times and animal moves ascends any distance in the dive period
-    :ivar total_descent_distance_traveled: the total absolute distance in meters in which the anaimal moves down
-    :ivar total_ascent_distance_traveled: the total absolute distance in meters in which the anaimal moves up
-    :ivar overall_change_in_depth: the difference between the minimum and maximum depth within the dive period
-    :ivar td_time_at_depth: the duration in seconds at which the animal spends in the deepest part of the vertical movement (< 85% depth)
-    :ivar td_time_pre_depth: the duration in seconds befor the deepest part of the vertical movement (< 85% depth)
-    :ivar td_time_post_depth: the duration in seconds after the deepest part of the vertical movement (< 85% depth)
+    :ivar average_vertical_velocity: the mean velocity of the animal over the
+        entire dive with negative value indicating upward movement
+    :ivar average_descent_velocity: the average velocity of any downward
+        movement as positive value
+    :ivar average_ascent_velocity: the average velocity of any upward movement
+        as positive value
+    :ivar number_of_descent_transitions: the number of times and animal moves
+        descends any distance in the dive period
+    :ivar number_of_ascent_transitions: the number of times and animal moves
+        ascends any distance in the dive period
+    :ivar total_descent_distance_traveled: the total absolute distance in
+        meters in which the anaimal moves down
+    :ivar total_ascent_distance_traveled: the total absolute distance in
+        meters in which the anaimal moves up
+    :ivar overall_change_in_depth: the difference between the minimum and
+        maximum depth within the dive period
+    :ivar td_time_at_depth: the duration in seconds at which the animal spends
+        in the deepest part of the vertical movement (< 85% depth)
+    :ivar td_time_pre_depth: the duration in seconds befor the deepest part of
+        the vertical movement (< 85% depth)
+    :ivar td_time_post_depth: the duration in seconds after the deepest part
+        of the vertical movement (< 85% depth)
     :ivar peaks: the number of peaks found in the dive profile
     :ivar left_skew: a boolean of 1 or 0 indicating if the dive is left skewed
-    :ivar right_skew: a boolean of 1 or 0 indicating if the dive is right skewed
+    :ivar right_skew: a boolean of 1 or 0 indicating if the dive is right
+        skewed
     :ivar no_skew: a boolean of 1 or 0 indicating if the dive is not skewed
 
     """
@@ -48,7 +61,9 @@ class DeepDive:
         """
         :param data: the time and depth values for the dive
         :param columns: a dictionary of column mappings for the data
-        :param at_depth_threshold: a value from 0 - 1 indicating distance from the bottom of the dive at which the animal is considered to be at depth
+        :param at_depth_threshold: a value from 0 - 1 indicating distance from
+            the bottom of the dive at which the animal is considered to be at
+            depth
         """
 
         if data[columns['time']].dtypes != np.float64:
@@ -70,14 +85,21 @@ class DeepDive:
             ((self.data.depth.diff() / self.data.time.diff()))).mean()
         self.average_descent_velocity = self.get_average_descent_velocity()
         self.average_ascent_velocity = self.get_average_ascent_velocity()
-        self.number_of_descent_transitions = len(
-            self.data[(self.data.depth.diff() / self.data.time.diff()) > 0])
-        self.number_of_ascent_transitions = len(
-            self.data[(self.data.depth.diff() / self.data.time.diff()) < 0])
-        self.total_descent_distance_traveled = self.get_descent_vertical_distance(
-        )
-        self.total_ascent_distance_traveled = self.get_ascent_vertical_distance(
-        )
+
+        self.number_of_descent_transitions = \
+            len(self.data[(self.data.depth.diff() /
+                           self.data.time.diff()) > 0])
+
+        self.number_of_ascent_transitions = \
+            len(self.data[(self.data.depth.diff() /
+                           self.data.time.diff()) < 0])
+
+        self.total_descent_distance_traveled =  \
+            self.get_descent_vertical_distance()
+
+        self.total_ascent_distance_traveled =   \
+            self.get_ascent_vertical_distance()
+
         self.overall_change_in_depth = self.data.depth.diff().sum()
         self.td_time_at_depth = self.get_time_at_depth(at_depth_threshold)
         self.td_time_pre_depth = self.get_time_pre_depth(at_depth_threshold)
@@ -113,15 +135,19 @@ class DeepDive:
 
     def get_time_at_depth(self, at_depth_threshold=0.15):
         """
-        :param at_depth_threshold: a value from 0 - 1 indicating distance from the bottom of the dive at which the animal is considered to be at depth
+        :param at_depth_threshold: a value from 0 - 1 indicating distance from
+            the bottom of the dive at which the animal is considered to be at
+            depth
         :return: the duration at depth in seconds
         """
         time = 0
         dive = self.data.copy(deep=True)
         dive['time_diff'] = dive.time.diff()
-        time_data = dive[dive.depth > (dive.depth.max() - (
-            (dive.depth.max() - dive.depth.min()) * at_depth_threshold))].tail(
-                -1)
+        time_data = dive[
+            dive.depth > (dive.depth.max() - (
+                (dive.depth.max() - dive.depth.min()) * at_depth_threshold)
+            )
+        ].tail(-1)
         if len(time_data) != 0:
             time = time_data.time_diff.sum()
         del dive
@@ -129,15 +155,19 @@ class DeepDive:
 
     def get_time_pre_depth(self, at_depth_threshold=0.15):
         """
-        :param at_depth_threshold: a value from 0 - 1 indicating distance from the bottom of the dive at which the animal is considered to be at depth
+        :param at_depth_threshold: a value from 0 - 1 indicating distance from
+            the bottom of the dive at which the animal is considered to be at
+            depth
         :return: the duration before depth in seconds
         """
         time = 0
         dive = self.data.copy(deep=True)
         dive['time_diff'] = dive.time.diff()
-        at_depth_data = dive[dive.depth > (dive.depth.max() - (
-            (dive.depth.max() - dive.depth.min()) * at_depth_threshold))].tail(
-                -1)
+        at_depth_data = dive[
+            dive.depth > (dive.depth.max() - (
+                (dive.depth.max() - dive.depth.min()) * at_depth_threshold)
+            )
+        ].tail(-1)
         time_data = dive[dive.time < at_depth_data.time.min()]
         if len(time_data) != 0:
             time = time_data.time_diff.sum()
@@ -146,15 +176,19 @@ class DeepDive:
 
     def get_time_post_depth(self, at_depth_threshold=0.15):
         """
-        :param at_depth_threshold: a value from 0 - 1 indicating distance from the bottom of the dive at which the animal is considered to be at depth
+        :param at_depth_threshold: a value from 0 - 1 indicating distance from
+            the bottom of the dive at which the animal is considered to be at
+            depth
         :return: the duration after depth in seconds
         """
         time = 0
         dive = self.data.copy(deep=True)
         dive['time_diff'] = dive.time.diff()
-        at_depth_data = dive[dive.depth > (dive.depth.max() - (
-            (dive.depth.max() - dive.depth.min()) * at_depth_threshold))].tail(
-                -1)
+        at_depth_data = dive[
+            dive.depth > (dive.depth.max() - (
+                (dive.depth.max() - dive.depth.min()) * at_depth_threshold)
+            )
+        ].tail(-1)
         time_data = dive[dive.time > at_depth_data.time.max()]
         if len(time_data) != 0:
             time = time_data.time_diff.sum()
@@ -221,11 +255,11 @@ class DeepDive:
         at_depth_data = dive[dive.depth > (dive.depth.max() - (
             (dive.depth.max() - dive.depth.min()) * at_depth_threshold))]
         pre_depth_data = dive[(dive.depth < (dive.depth.max() - (
-            (dive.depth.max() - dive.depth.min()) * at_depth_threshold)))
-                              & (dive.time <= at_depth_data.time.min())]
+            (dive.depth.max() - dive.depth.min()) * at_depth_threshold))) &
+            (dive.time <= at_depth_data.time.min())]
         post_depth_data = dive[(dive.depth < (dive.depth.max() - (
-            (dive.depth.max() - dive.depth.min()) * at_depth_threshold)))
-                               & (dive.time >= at_depth_data.time.max())]
+            (dive.depth.max() - dive.depth.min()) * at_depth_threshold))) &
+            (dive.time >= at_depth_data.time.max())]
 
         pre_depth_data = pre_depth_data.append(at_depth_data.head(1))
         post_depth_data = post_depth_data.append(at_depth_data.tail(1))

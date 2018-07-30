@@ -15,6 +15,22 @@ def plot_from_nc(folder,
                  type='dive',
                  filename='index.html',
                  at_depth_threshold=0.15):
+    """
+    :param folder: the path to the results folder contianing the cluster
+        folders
+    :param cluster: the number of the cluster of the dive
+    :param dive_id: the number of of the dive
+    :param type: a string of either either ``dive`` or ``deepdive``
+    :param ipython_display: a boolean indicating whether or not to show the
+        dive in a notebook
+    :param filename: the filename to save the dive to if it is not shown in a
+        notebook
+    :param at_depth_threshold: a value from 0 - 1 indicating distance from the
+        bottom of the dive at which the animal is considered to be at depth
+
+    :return: a plotly line chart of the dive
+
+    """
     if type == 'deepdive':
         return plot_deepdive_from_nc(folder, cluster, dive_id, ipython_display,
                                      filename, at_depth_threshold)
@@ -27,13 +43,19 @@ def plot_dive_from_nc(folder,
                       cluster,
                       dive_id,
                       ipython_display=True,
-                      filename='index.html'):
+                      filename='index.html',
+                      at_depth_threshold=0.15):
     """
-    :param folder: the path to the results folder contianing the cluster folders
+    :param folder: the path to the results folder contianing the cluster
+        folders
     :param cluster: the number of the cluster of the dive
     :param dive_id: the number of of the dive
-    :param ipython_display: a boolean indicating whether or not to show the dive in a notebook
-    :param filename: the filename to save the dive to if it is not shown in a notebook
+    :param ipython_display: a boolean indicating whether or not to show the
+        dive in a notebook
+    :param filename: the filename to save the dive to if it is not shown in a
+        notebook
+    :param at_depth_threshold: a value from 0 - 1 indicating distance from the
+        bottom of the dive at which the animal is considered to be at depth
 
     :return: a plotly line chart of the dive
 
@@ -71,8 +93,10 @@ def plot_dive_from_nc(folder,
         name='Descent')
 
     # Get and set the ascent data
-    ascent_data = data[(data.time >= bottom_data.time.max())
-                       & (data.time <= surface_data.time.min())]
+    ascent_data = data[
+        (data.time >= bottom_data.time.max()) &
+        (data.time <= surface_data.time.min())
+    ]
     ascent = go.Scatter(
         x=num2date(ascent_data.time.tolist(), units=rootgrp.time_units),
         y=ascent_data.depth,
@@ -103,11 +127,16 @@ def plot_deepdive_from_nc(folder,
                           filename='index.html',
                           at_depth_threshold=0.15):
     """
-    :param folder: the path to the results folder contianing the cluster folders
+    :param folder: the path to the results folder contianing the cluster
+        folders
     :param cluster: the number of the cluster of the dive
     :param dive_id: the number of of the dive
-    :param ipython_display: a boolean indicating whether or not to show the dive in a notebook
-    :param filename: the filename to save the dive to if it is not shown in a notebook
+    :param ipython_display: a boolean indicating whether or not to show the
+        dive in a notebook
+    :param filename: the filename to save the dive to if it is not shown in a
+        notebook
+    :param at_depth_threshold: a value from 0 - 1 indicating distance from the
+        bottom of the dive at which the animal is considered to be at depth
 
     :return: a plotly line chart of the dive
 
@@ -121,11 +150,11 @@ def plot_deepdive_from_nc(folder,
     at_depth_data = data[data.depth > (data.depth.max() - (
         (data.depth.max() - data.depth.min()) * at_depth_threshold))]
     pre_depth_data = data[(data.depth < (data.depth.max() - (
-        (data.depth.max() - data.depth.min()) * at_depth_threshold)))
-                          & (data.time <= at_depth_data.time.min())]
+        (data.depth.max() - data.depth.min()) * at_depth_threshold))) &
+        (data.time <= at_depth_data.time.min())]
     post_depth_data = data[(data.depth < (data.depth.max() - (
-        (data.depth.max() - data.depth.min()) * at_depth_threshold)))
-                           & (data.time >= at_depth_data.time.max())]
+        (data.depth.max() - data.depth.min()) * at_depth_threshold))) &
+        (data.time >= at_depth_data.time.max())]
 
     pre_depth_data = pre_depth_data.append(at_depth_data.head(1))
     post_depth_data = post_depth_data.append(at_depth_data.tail(1))
@@ -173,9 +202,12 @@ def cluster_summary_plot(folder,
                              'time': False
                          }):
     """
-    :param folder: the path to the results folder contianing the cluster folders
-    :param ipython_display: a boolean indicating whether or not to show the dive in a notebook
-    :param filename: the filename to save the dive to if it is not shown in a notebook
+    :param folder: the path to the results folder contianing the cluster
+        folders
+    :param ipython_display: a boolean indicating whether or not to show the
+        dive in a notebook
+    :param filename: the filename to save the dive to if it is not shown in a
+        notebook
     :param title: the displaye title of the plot
 
     :return: a plotly graph summary of all of the dive clusters

@@ -8,7 +8,8 @@ from netCDF4 import Dataset, date2num, num2date
 
 def zlib_encoding(ds):
     """
-    This is a helper function for xarray to compress all variables going to netCDF
+    This is a helper function for xarray to compress all variables going to
+    netCDF
 
     :param ds: an xarray Dataset
 
@@ -23,7 +24,8 @@ def calculate_window_mean(window, surface_threshold, df):
     """
 
     :param window: an int to determine the size for a rolling median
-    :param surface_threshold: the maximum depth that will be considered for the offset
+    :param surface_threshold: the maximum depth that will be considered for the
+        offset
     :param df: Pandas Dataframe of the dive data
 
     :return: An average offset in meters using the defined window
@@ -50,10 +52,13 @@ def correct_depth_offset(data,
     """
     :param data: The dataset consisting of a time and a depth column
     :param window: time window (in seconds) to use in the calculation
-    :param aux_file: A netCDF file to write all of the calculated offsets and window size
+    :param aux_file: A netCDF file to write all of the calculated offsets and
+        window size
     :param columns: column renaming dictionary if needed
-    :param method: either 'max' or 'mean' declaring the calculation method, default is max
-    :param surface_threshold: maximum values (in meters) to use when using the mean the calculate
+    :param method: either 'max' or 'mean' declaring the calculation method,
+        default is max
+    :param surface_threshold: maximum values (in meters) to use when using the
+        mean the calculate
 
     :return: A DataFrame with a corrected depth
     """

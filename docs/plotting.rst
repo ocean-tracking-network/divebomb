@@ -12,3 +12,5 @@ will five the minimum, maximum, and average depth at time (seconds) into the div
 
 .. automodule:: divebomb.plotting
     :members:
+    :undoc-members:
+    :private-members:

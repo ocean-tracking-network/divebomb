@@ -10,4 +10,6 @@ are used has helper functions inside ``profile_dives()``.
 .. currentmodule:: divebomb
 
 .. automodule:: divebomb
-   :members:
+  :members:
+  :undoc-members:
+  :private-members:
