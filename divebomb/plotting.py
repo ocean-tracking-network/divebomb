@@ -44,7 +44,8 @@ def plot_dive_from_nc(folder,
                       dive_id,
                       ipython_display=True,
                       filename='index.html',
-                      at_depth_threshold=0.15):
+                      at_depth_threshold=0.15,
+                      title='Clusters'):
     """
     :param folder: the path to the results folder contianing the cluster
         folders
@@ -56,6 +57,7 @@ def plot_dive_from_nc(folder,
         notebook
     :param at_depth_threshold: a value from 0 - 1 indicating distance from the
         bottom of the dive at which the animal is considered to be at depth
+    :param title: string title of plot
 
     :return: a plotly line chart of the dive
 
@@ -298,7 +300,7 @@ def cluster_summary_plot(folder,
         plot_data.append(line_trace)
 
     layout = go.Layout(
-        title='Clusters',
+        title=title,
         xaxis=dict(title=xaxis_title, range=[0, aggregated_data[xaxis].max()]),
         yaxis=dict(title=yaxis_title, autorange='reversed'))
     py.init_notebook_mode()
