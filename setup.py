@@ -11,7 +11,7 @@ with open('LICENSE') as f:
 
 setup(
     name='divebomb',
-    version='0.3.0',
+    version='1.0.0',
     description='divebomb dive classification algorithm',
     long_description=readme,
     author='Alex Nunes',
