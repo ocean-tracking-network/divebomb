@@ -101,10 +101,11 @@ class Dive:
         std_dev = 0
         for i, r in self.data.iterrows():
             next_std_dev = np.std(self.data.loc[:i, 'depth'])
-            if (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >=
+            if ((i + 1) not in self.data.index or
+                (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >=
                     self.data.loc[(i + 1), 'depth']
-                ) and self.data.loc[i, 'depth'] > (self.max_depth *
-                                                   (1 - at_depth_threshold)):
+                 ) and self.data.loc[i, 'depth'] > (self.max_depth *
+                                                    (1 - at_depth_threshold))):
                 self.bottom_start = self.data.loc[i, 'time']
                 return (self.data.loc[i, 'time'] - self.data.loc[0, 'time'])
                 break
