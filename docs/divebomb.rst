@@ -65,12 +65,12 @@ A surface threshold is used for surfacing animals to define a depth window for w
 At Depth Thresholds
 *******************
 
-An at depth threshold is used in bothe the ``Dive`` and the ``DeepDive`` class. The ``at_depth_thresold`` argument is a value between ``0`` and ``1`` that determines the window for when an animal is considered to be at bottom of its dive. The default value is ``0.15`` which means the bottom ``15%`` of the relative depth is considered to be at bottom. ``at_depth_thresold`` is always as value between ``0`` and ``1`` expressing a percentage.
+An at depth threshold is used in both the ``Dive`` and the ``DeepDive`` class. The ``at_depth_thresold`` argument is a value between ``0`` and ``1`` that determines the window for when an animal is considered to be at bottom of its dive. The default value is ``0.15`` which means the bottom ``15%`` of the relative depth is considered to be at bottom. ``at_depth_thresold`` is always as value between ``0`` and ``1`` expressing a percentage.
 
 Dive Detection
 **************
 
-There are two arguments that are used to help determine dives on any animal, ``dive_detection_sensitivity`` and ``minimal_time_between_dives``. The ``dive_detection_sensitivity`` argument is a value between ``0`` and ``1``. The default is ``0.98`` for surfacing animals and ``0.5`` for non-surfacing animals. The ``dive_detection_sensitivity`` helps determine range where dive starts can be determines.
+There are two arguments that are used to help determine dives on any animal, ``dive_detection_sensitivity`` and ``minimal_time_between_dives``. The ``dive_detection_sensitivity`` argument is a value between ``0`` and ``1``. The default is ``0.98`` for surfacing animals and ``0.5`` for non-surfacing animals. The ``dive_detection_sensitivity`` helps determine range where dive starts can be determined.
 The ``minimal_time_between_dives`` is the minimum time (in seconds) that has to occur before a new dive can start. The default value for this is ``10`` seconds.
 
 Skews

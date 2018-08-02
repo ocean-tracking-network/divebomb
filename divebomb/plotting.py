@@ -284,7 +284,7 @@ def cluster_summary_plot(folder,
             fillcolor=colors[cluster].replace(')', ',0.3)').replace(
                 'rgb', 'rgba'),
             name='Cluster ' + str(cluster) + ' Possible Range',
-            line=go.scatter.Line(width=0),
+            line=go.scatter.Line(width=0, color=colors[cluster]),
         )
         plot_data.append(fill_trace)
 
