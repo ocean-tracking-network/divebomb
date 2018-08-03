@@ -8,6 +8,11 @@ The dive profiles are reduced to 8 dimensions using Principal Component Analsysi
 and the minimal Bayesian Information Criterion is used to determine the optimal number of clusters. The dives are split into the clusters using
 Agglomerative Hierarchical Clustering (from sklearn). The dives are then display through iPython notebooks or saved to netCDF files organized by cluster.
 
+Documentation
+-------------
+
+The official documentation is hosted on here: http://divebomb.readthedocs.io/en/latest/
+
 Dive
 ****
 
