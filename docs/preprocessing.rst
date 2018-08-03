@@ -18,4 +18,6 @@ There are two methods for the main function, ``correct_depth_offset()``:
 .. currentmodule:: divebomb.preprocessing
 
 .. automodule:: divebomb.preprocessing
-    :members:
+  :members:
+  :undoc-members:
+  :private-members:

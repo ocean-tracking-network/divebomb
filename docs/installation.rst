@@ -10,10 +10,8 @@ Conda
 
 .. code:: bash
 
-  conda config --add channels ioos
-  conda config --add channels cbetters
-  conda config --add channels anaconda
-  conda install -c anunes divebomb
+  conda config --add channels conda-forge
+  conda install divebomb
 
 
 
@@ -22,4 +20,4 @@ Pip
 
 .. code:: bash
 
-  pip install --extra-index-url https://testpypi.python.org/pypi divebomb
+  pip install divebomb
