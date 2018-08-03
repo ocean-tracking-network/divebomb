@@ -17,6 +17,4 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 - Detection method for determining dive starts is no based on peak detection
-- Principle Component Analysis is run on all attributes, except dive_start, dive_end, and surface_threshold
-
-### Removed
+- Principle Component Analysis is run on all attributes, except ``dive_start``, ``dive_end``, and ``surface_threshold``
