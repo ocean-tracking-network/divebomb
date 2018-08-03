@@ -1,4 +1,3 @@
-
 Divebomb
 ========
 Divebomb is a python package that uses pandas to divide a timeseries of depths into individual dives.
