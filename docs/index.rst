@@ -3,16 +3,17 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-.. include:: ../README.md
+.. include:: divebomb.rst
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   self
+   divebomb
    installation
    examples
    divebomb_functions
    dive
+   deepdive
    preprocessing
    plotting
