@@ -3,6 +3,7 @@ import __future__
 import math
 import os
 import shutil
+import sys
 
 import ipywidgets as widgets
 import numpy as np
@@ -24,7 +25,7 @@ from divebomb.Dive import Dive
 __author__ = "Alex Nunes"
 __credits__ = ["Alex Nunes", "Fran Broell"]
 __license__ = "GPLv2"
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __maintainer__ = "Alex Nunes"
 __email__ = "anunes@dal.ca"
 __status__ = "Development"
@@ -94,51 +95,56 @@ def cluster_dives(dives):
     if 'surface_threshold' in dataset.columns:
         dataset.drop('surface_threshold', axis=1, inplace=True)
 
-    # Scale all values
-    X = dataset.values
-    sc_X = StandardScaler()
-    X = sc_X.fit_transform(X)
+    try:
+        # Scale all values
+        X = dataset.values
+        sc_X = StandardScaler()
+        X = sc_X.fit_transform(X)
 
-    # Apply principle component analysis
-    pca = PCA(n_components=8)
-    X = pca.fit_transform(X)
+        # Apply principle component analysis
+        pca = PCA(n_components=8)
+        X = pca.fit_transform(X)
 
-    # Get the loadings matrix
-    loadings = pd.DataFrame(pca.components_).T
-    loadings.reset_index(inplace=True)
-    column_heading = ['component']
-    for column in loadings.columns:
-        if column != 'index':
-            column_heading.append('PC_' + str(column))
-    loadings.columns = column_heading
-    loadings['component'] = dataset.columns
+        # Get the loadings matrix
+        loadings = pd.DataFrame(pca.components_).T
+        loadings.reset_index(inplace=True)
+        column_heading = ['component']
+        for column in loadings.columns:
+            if column != 'index':
+                column_heading.append('PC_' + str(column))
+        loadings.columns = column_heading
+        loadings['component'] = dataset.columns
 
-    # Get the PCA output matrix
-    pca_output_matrix = pd.DataFrame(X)
-    column_heading = []
-    for column in pca_output_matrix.columns:
-        if column != 'index':
-            column_heading.append('PC_' + str(column))
-    pca_output_matrix.columns = column_heading
+        # Get the PCA output matrix
+        pca_output_matrix = pd.DataFrame(X)
+        column_heading = []
+        for column in pca_output_matrix.columns:
+            if column != 'index':
+                column_heading.append('PC_' + str(column))
+        pca_output_matrix.columns = column_heading
 
-    # Find the optimal number of clusters
-    n_components = np.arange(1, 11)
-    models = [
-        GaussianMixture(n, covariance_type='full', random_state=0).fit(X)
-        for n in n_components
-    ]
-    bics = y = [m.bic(X) for m in models]
-    diffs = np.diff(bics).tolist()
-    n_clusters = (diffs.index(max(diffs[4:])))
+        # Find the optimal number of clusters
+        n_components = np.arange(1, 11)
+        models = [
+            GaussianMixture(n, covariance_type='full',
+                            random_state=0).fit(X)
+            for n in n_components
+        ]
+        bics = y = [m.bic(X) for m in models]
+        diffs = np.diff(bics).tolist()
+        n_clusters = (diffs.index(max(diffs[4:])))
 
-    # Apply Agglomerative clustering
-    hc = AgglomerativeClustering(
-        n_clusters=n_clusters, affinity='euclidean', linkage='ward')
-    y_hc = hc.fit_predict(X)
-    dataset['cluster'] = y_hc
+        # Apply Agglomerative clustering
+        hc = AgglomerativeClustering(
+            n_clusters=n_clusters, affinity='euclidean', linkage='ward')
+        y_hc = hc.fit_predict(X)
+        dataset['cluster'] = y_hc
 
-    clustered_dives = dives.join(dataset[['cluster']])
-    return clustered_dives, loadings, pca_output_matrix
+        clustered_dives = dives.join(dataset[['cluster']])
+        return clustered_dives, loadings, pca_output_matrix
+    except ValueError as e:
+        if len(X) < 10:
+            sys.exit("It is possible not enough dives were extracted to apply clustering. Try lowering the `dive_detection_sensitivity` value: https://divebomb.readthedocs.io/en/latest/divebomb.html#dive-detection")
 
 
 def export_dives(dives, data, folder, is_surface_events=False):
@@ -264,7 +270,7 @@ def clean_dive_data(data, columns={'depth': 'depth', 'time': 'time'}):
 def get_dive_starting_points(data,
                              is_surfacing_animal=True,
                              dive_detection_sensitivity=None,
-                             minimal_time_between_dives=10,
+                             minimal_time_between_dives=120,
                              surface_threshold=0,
                              columns={
                                  'depth': 'depth',
@@ -338,7 +344,7 @@ def profile_dives(data,
                   },
                   is_surfacing_animal=True,
                   dive_detection_sensitivity=None,
-                  minimal_time_between_dives=10,
+                  minimal_time_between_dives=120,
                   surface_threshold=0,
                   ipython_display_mode=False,
                   at_depth_threshold=0.15):
