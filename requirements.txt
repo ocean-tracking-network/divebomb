@@ -8,3 +8,4 @@ datetime
 netCDF4
 ipywidgets
 colorlover
+xarray

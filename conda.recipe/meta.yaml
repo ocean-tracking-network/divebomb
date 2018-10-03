@@ -1,6 +1,6 @@
 package:
   name: divebomb
-  version: "1.0.0"
+  version: "1.0.1"
 
 source:
   git_rev: master
@@ -25,6 +25,7 @@ requirements:
     - netcdf4
     - peakutils
     - scikit-learn
+    - xarray
 
   run:
     - python {{ python }}
@@ -36,6 +37,7 @@ requirements:
     - netcdf4
     - peakutils
     - scikit-learn
+    - xarray
 
 about:
   home: https://gitlab.oceantrack.org/anunes/divebomb
