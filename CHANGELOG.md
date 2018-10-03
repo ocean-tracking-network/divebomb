@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [1.0.1] - 2018-08-01
 ### Added
 - New sample data set included in docs
-- New error message when sample size is too low
+- New error message when sample size is too low for clustering
 
 ## [1.0.0] - 2018-08-01
 ### Added
