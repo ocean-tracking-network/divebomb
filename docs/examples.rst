@@ -7,6 +7,10 @@ Code Examples
 Divebomb
 --------
 
+The example data set below is dive data from grey seal over the course of a few days.
+
+Example data set: :download:`Seal Dives <_static/seal_dive_data.csv>`
+
 Dives
 *****
 
