@@ -37,6 +37,8 @@ class Dive:
     :ivar right_skew: a boolean of 1 or 0 indicating if the dive is right
         skewed
     :ivar no_skew: a boolean of 1 or 0 indicating if the dive is not skewed
+    :ivar insufficient_data: a boolean indicating whether or not the profile
+        could be completed
 
     """
 
@@ -67,29 +69,34 @@ class Dive:
             if k != v:
                 self.data[k] = self.data[v]
                 self.data.drop(v, axis=1)
+
         self.max_depth = self.data.depth.max()
         self.dive_start = self.data.time.min()
         self.dive_end = self.data.time.max()
         self.bottom_start = None
         self.td_bottom_duration = None
         self.bottom_difference = None
-        self.td_descent_duration = self.get_descent_duration(
-            at_depth_threshold)
-        self.td_ascent_duration = self.get_ascent_duration(at_depth_threshold)
-        self.td_surface_duration = self.get_surface_duration()
-        self.bottom_variance = self.set_bottom_variance()
-        self.descent_velocity = self.get_descent_velocity()
-        self.ascent_velocity = self.get_ascent_velocity()
-        self.td_total_duration = self.td_ascent_duration +          \
-            self.td_bottom_duration + self.td_descent_duration +    \
-            self.td_surface_duration
-        self.td_dive_duration = self.td_total_duration -    \
-            self.td_surface_duration
-        self.no_skew = 0
-        self.right_skew = 0
-        self.left_skew = 0
-        self.set_skew()
-        self.peaks = self.get_peaks()
+        self.td_total_duration = self.dive_end - self.dive_start
+        try:
+            self.td_descent_duration = self.get_descent_duration(
+                at_depth_threshold)
+            self.td_ascent_duration = self.get_ascent_duration(
+                at_depth_threshold)
+            self.td_surface_duration = self.get_surface_duration()
+            self.bottom_variance = self.set_bottom_variance()
+            self.descent_velocity = self.get_descent_velocity()
+            self.ascent_velocity = self.get_ascent_velocity()
+
+            self.td_dive_duration = self.td_total_duration -    \
+                self.td_surface_duration
+            self.no_skew = 0
+            self.right_skew = 0
+            self.left_skew = 0
+            self.set_skew()
+            self.peaks = self.get_peaks()
+            self.insufficient_data = False
+        except:
+            self.insufficient_data = True
 
     def get_descent_duration(self, at_depth_threshold=0.15):
         """
@@ -104,8 +111,8 @@ class Dive:
             if ((i + 1) not in self.data.index or
                 (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >=
                     self.data.loc[(i + 1), 'depth']
-                 ) and self.data.loc[i, 'depth'] > (self.max_depth *
-                                                    (1 - at_depth_threshold))):
+                    ) and self.data.loc[i, 'depth'] > (self.max_depth *
+                                                       (1 - at_depth_threshold))):
                 self.bottom_start = self.data.loc[i, 'time']
                 return (self.data.loc[i, 'time'] - self.data.loc[0, 'time'])
                 break
@@ -127,7 +134,7 @@ class Dive:
 
         # Find the crest of the dive in reversed values
         for i, r in self.data.sort_values('time', ascending=False).iterrows():
-            if self.data.loc[(i - 1), 'depth'] >= self.surface_threshold:
+            if self.data.loc[(i - 1), 'depth'] > self.surface_threshold:
                 end_index = i
                 break
 
@@ -269,6 +276,7 @@ class Dive:
         # Get and set the bottom data
         bottom_data = self.data[(self.data.time >= self.bottom_start) & (
             self.data.time <= (self.bottom_start + self.td_bottom_duration))]
+
         bottom = go.Scatter(
             x=num2date(bottom_data.time.tolist(), units=units),
             y=bottom_data.depth,
