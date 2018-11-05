@@ -7,7 +7,7 @@ source:
   git_url: https://gitlab.oceantrack.org/anunes/divebomb
 
 build:
-  number: 1
+  number: 0
 
 python:
   - 2.7
