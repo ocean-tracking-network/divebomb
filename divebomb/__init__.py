@@ -25,7 +25,7 @@ from divebomb.Dive import Dive
 __author__ = "Alex Nunes"
 __credits__ = ["Alex Nunes", "Fran Broell"]
 __license__ = "GPLv2"
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 __maintainer__ = "Alex Nunes"
 __email__ = "anunes@dal.ca"
 __status__ = "Development"
@@ -59,9 +59,9 @@ def display_dive(index,
     """
 
     index = int(index)
-    print(
-        str(starts.loc[index, 'start_block']) + ":" +
-        str(starts.loc[index, 'end_block']))
+    print("Data Indices - " +
+          str(starts.loc[index, 'start_block']) + ":" +
+          str(starts.loc[index, 'end_block']))
     if type == 'deepdive':
         dive_profile = DeepDive(
             data[starts.loc[index, 'start_block']:starts.loc[index,
@@ -73,7 +73,14 @@ def display_dive(index,
                                                              'end_block']],
             surface_threshold=surface_threshold,
             at_depth_threshold=at_depth_threshold)
-    return dive_profile.plot()
+
+    if not dive_profile.insufficient_data:
+        return dive_profile.plot()
+    else:
+        print("WARNING: There was not enough data to correctly profile this \
+        dive. You may try adjusting the sensitivity or the minimal time \
+        between dives to correct this.")
+        print(dive_profile.to_dict())
 
 
 def cluster_dives(dives):
@@ -91,7 +98,8 @@ def cluster_dives(dives):
     """
     # Subset the data
     dataset = dives.fillna(0)
-    dataset.drop(['dive_start', 'dive_end'], axis=1, inplace=True)
+    dataset.drop(['dive_start', 'dive_end', 'insufficient_data'],
+                 axis=1, inplace=True)
     if 'surface_threshold' in dataset.columns:
         dataset.drop('surface_threshold', axis=1, inplace=True)
 
@@ -186,7 +194,7 @@ def export_dives(dives, data, folder, is_surface_events=False):
         rootgrp.close()
 
 
-def export_all_data(folder, data, dives, loadings, pca_output_matrix):
+def export_all_data(folder, data, dives, loadings, pca_output_matrix, insufficient_dives):
     """
     :param folder: the path to export all files to, the folder will be
         overwritten
@@ -197,6 +205,8 @@ def export_all_data(folder, data, dives, loadings, pca_output_matrix):
         loadings
     :param pca_output_matrix: a Pandas DataFrame of the Principle Component
         Analysis results
+    :param insufficent_dives: a Pandas DataFrame of dives that could not be
+        profiled
     """
     # Export the dives to netCDF
     if os.path.exists(folder):
@@ -246,6 +256,16 @@ def export_all_data(folder, data, dives, loadings, pca_output_matrix):
         os.path.join(folder, "all_profiled_dives.nc"), mode='w')
     xarray_data.close()
 
+    # Write an overall summary netcdf
+    xarray_data = xr.Dataset(insufficient_dives)
+    if 'bottom_start' in xarray_data.variables:
+        xarray_data.variables['bottom_start'].attrs = {'units': units}
+    xarray_data.variables['dive_end'].attrs = {'units': units}
+    xarray_data.variables['dive_start'].attrs = {'units': units}
+    xarray_data.to_netcdf(
+        os.path.join(folder, "insufficent_data_dives.nc"), mode='w')
+    xarray_data.close()
+
 
 def clean_dive_data(data, columns={'depth': 'depth', 'time': 'time'}):
     """
@@ -268,8 +288,8 @@ def clean_dive_data(data, columns={'depth': 'depth', 'time': 'time'}):
 
 
 def get_dive_starting_points(data,
+                             dive_detection_sensitivity,
                              is_surfacing_animal=True,
-                             dive_detection_sensitivity=None,
                              minimal_time_between_dives=120,
                              surface_threshold=0,
                              columns={
@@ -318,9 +338,10 @@ def get_dive_starting_points(data,
 
     if is_surfacing_animal:
         for index, row in starts.iterrows():
-            starts.loc[index, 'max_depth'] = data[starts.loc[
-                index, 'start_block']:starts.loc[index,
-                                                 'end_block']].depth.max()
+            sub_data = data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']]
+            starts.loc[index, 'max_depth'] = sub_data.depth.max()
+            starts.loc[index, 'new_start'] = sub_data[sub_data.depth >
+                                                      surface_threshold].head(1).index.min ()  - 2
         surface_threshold = surface_threshold
         starts = starts[(starts.max_depth > surface_threshold)]
         starts.drop(
@@ -328,10 +349,12 @@ def get_dive_starting_points(data,
             axis=1,
             inplace=True)
         starts['time_diff'] = starts.time.diff()
-        starts['start_block'] = starts.index
+        starts['start_block'] = starts.new_start.astype(int)
         starts['end_block'] = starts.start_block.shift(-1) + 1
+        starts.drop('new_start', inplace=True, axis=1)
         starts.end_block.fillna(data.index.max(), inplace=True)
         starts.end_block = starts.end_block.astype(int)
+        starts.start_block.diff() < 5
     starts.reset_index(drop=True, inplace=True)
     return starts
 
@@ -366,10 +389,9 @@ def profile_dives(data,
         surfacing animals, default is 0
     :param ipython_display_mode: whether or not to display the dives
 
-    :return: three dataframes for the dive profiles, start blocks, and the
-        original data
+    :return: two dataframes for the dive profiles and the original data
     """
-
+    data = data.copy(deep=True)
     starts = get_dive_starting_points(
         data,
         is_surfacing_animal=is_surfacing_animal,
@@ -421,9 +443,15 @@ def profile_dives(data,
                     at_depth_threshold=at_depth_threshold)
                 dives = dives.append(dive_profile.to_dict(), ignore_index=True)
 
+        # Pull out insufficient dives
+        insufficient_dives = dives[dives.insufficient_data == True].reset_index(
+            drop=True)
+        dives = dives[dives.insufficient_data == False].reset_index(drop=True)
+
         dives, loadings, pca_output_matrix = cluster_dives(dives)
 
-        export_all_data(folder, data, dives, loadings, pca_output_matrix)
+        export_all_data(folder, data, dives, loadings,
+                        pca_output_matrix, insufficient_dives)
 
         # Return the three datasets back to the user
         return {'data': data, 'dives': dives}
