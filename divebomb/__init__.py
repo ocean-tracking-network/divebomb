@@ -25,7 +25,7 @@ from divebomb.Dive import Dive
 __author__ = "Alex Nunes"
 __credits__ = ["Alex Nunes", "Fran Broell"]
 __license__ = "GPLv2"
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 __maintainer__ = "Alex Nunes"
 __email__ = "anunes@dal.ca"
 __status__ = "Development"
@@ -98,8 +98,12 @@ def cluster_dives(dives):
     """
     # Subset the data
     dataset = dives.fillna(0)
-    dataset.drop(['dive_start', 'dive_end', 'insufficient_data'],
+    dataset.drop(['dive_start', 'dive_end'],
                  axis=1, inplace=True)
+
+    if 'insufficient_data' in dives.columns:
+        dataset.drop('insufficient_data', axis=1, inplace=True)
+
     if 'surface_threshold' in dataset.columns:
         dataset.drop('surface_threshold', axis=1, inplace=True)
 
@@ -194,7 +198,7 @@ def export_dives(dives, data, folder, is_surface_events=False):
         rootgrp.close()
 
 
-def export_all_data(folder, data, dives, loadings, pca_output_matrix, insufficient_dives):
+def export_all_data(folder, data, dives, loadings, pca_output_matrix, insufficient_dives=None):
     """
     :param folder: the path to export all files to, the folder will be
         overwritten
@@ -257,14 +261,15 @@ def export_all_data(folder, data, dives, loadings, pca_output_matrix, insufficie
     xarray_data.close()
 
     # Write an overall summary netcdf
-    xarray_data = xr.Dataset(insufficient_dives)
-    if 'bottom_start' in xarray_data.variables:
-        xarray_data.variables['bottom_start'].attrs = {'units': units}
-    xarray_data.variables['dive_end'].attrs = {'units': units}
-    xarray_data.variables['dive_start'].attrs = {'units': units}
-    xarray_data.to_netcdf(
-        os.path.join(folder, "insufficent_data_dives.nc"), mode='w')
-    xarray_data.close()
+    if insufficient_dives is not None:
+        xarray_data = xr.Dataset(insufficient_dives)
+        if 'bottom_start' in xarray_data.variables:
+            xarray_data.variables['bottom_start'].attrs = {'units': units}
+        xarray_data.variables['dive_end'].attrs = {'units': units}
+        xarray_data.variables['dive_start'].attrs = {'units': units}
+        xarray_data.to_netcdf(
+            os.path.join(folder, "insufficent_data_dives.nc"), mode='w')
+        xarray_data.close()
 
 
 def clean_dive_data(data, columns={'depth': 'depth', 'time': 'time'}):
@@ -324,6 +329,7 @@ def get_dive_starting_points(data,
         (data.depth * -1),
         thres=dive_detection_sensitivity,
         min_dist=(minimal_time_between_dives / data.time.diff().mean()))
+    starts = np.insert(starts,0, 0)
     starts = data[data.index.isin(starts)]
 
     starts['start_block'] = starts.index
@@ -354,7 +360,8 @@ def get_dive_starting_points(data,
         starts.drop('new_start', inplace=True, axis=1)
         starts.end_block.fillna(data.index.max(), inplace=True)
         starts.end_block = starts.end_block.astype(int)
-        starts.start_block.diff() < 5
+        starts.start_block = starts.start_block.clip(lower=0)
+
     starts.reset_index(drop=True, inplace=True)
     return starts
 
@@ -444,9 +451,12 @@ def profile_dives(data,
                 dives = dives.append(dive_profile.to_dict(), ignore_index=True)
 
         # Pull out insufficient dives
-        insufficient_dives = dives[dives.insufficient_data == True].reset_index(
-            drop=True)
-        dives = dives[dives.insufficient_data == False].reset_index(drop=True)
+        insufficient_dives = None
+        if 'insufficient_data' in dives.columns:
+            insufficient_dives = dives[dives.insufficient_data == True].reset_index(
+                drop=True)
+            dives = dives[dives.insufficient_data == False].reset_index(drop=True)
+
 
         dives, loadings, pca_output_matrix = cluster_dives(dives)
 
