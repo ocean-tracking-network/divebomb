@@ -54,7 +54,7 @@ class Dive:
         :param data: the time and depth values for the dive
         :param columns: a dictionary of column mappings for the data
         :param surface_threshold: minmum depth to constitute a dive
-        :param at_depth_threshold: a value from 0 - 1 indicating distance from
+        :param th_threshold: a value from 0 - 1 indicating distance from
             the bottom of the dive at which the animal is considered to be at
             depth
         """
@@ -93,7 +93,7 @@ class Dive:
             self.right_skew = 0
             self.left_skew = 0
             self.set_skew()
-            self.peaks = self.get_peaks()
+            self.peaks = self.get_peaks(surface_threshold)
             self.insufficient_data = False
         except:
             self.insufficient_data = True
@@ -238,17 +238,24 @@ class Dive:
         else:
             self.no_skew = 1
 
-    def get_peaks(self):
+    def get_peaks(self, surface_threshold=0):
         """
         :return: number of peaks found within a dive
         """
-        peak_thres = (1 - (self.data.depth.mean() -
-                           (self.surface_threshold)) / self.data.depth.max())
+        self.peaks = 0
+        # Get and set the bottom data
+        bottom_data = self.data[(self.data.time >= self.bottom_start) & (
+            self.data.time <= (self.bottom_start + self.td_bottom_duration))].reset_index()
+
+        threshold = max((bottom_data.depth.std()/(bottom_data.depth.max()- bottom_data.depth.min())),0.5)
+
         peaks = pk.indexes(
-            self.data.depth * (-1),
-            thres=min([0.2, peak_thres]),
+            bottom_data.depth * (-1),
+            thres=0.5,
             min_dist=max((10 / self.data.time.diff().mean()), 3))
-        self.peaks = len(peaks)
+
+        peak_data = bottom_data[(bottom_data.index.isin(peaks)) & (bottom_data.depth > surface_threshold)]
+        self.peaks = len(peak_data)
         return self.peaks
 
     # Return the dictionary of the object
