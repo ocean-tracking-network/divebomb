@@ -190,8 +190,12 @@ class Dive:
         :return: the ascent velocity in m/s
         """
         self.ascent_velocity = 0
-        ascent_data = self.data[self.data.time >= (
-            self.bottom_start + self.td_bottom_duration)]
+        ascent_data = self.data[
+            (self.data.time >=
+             (self.bottom_start + self.td_bottom_duration)) &
+            (self.data.time <=
+             (self.data.time.max() - self.td_surface_duration))
+        ]
         self.ascent_velocity = (
             ascent_data.depth.max() -
             ascent_data.depth.min()) / self.td_ascent_duration
