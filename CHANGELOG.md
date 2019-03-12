@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2019-03-11
+### Changed
+- Changed the descent start cutoff and padding to only apply to 10s sample rates or higher
+- Descent padding is limited to 1 step backwards instead of 2
+
+### Fixed
+- Fixed issue with ascent velocity including surface values as the minimum depth
+
 ## [1.0.4] - 2019-03-07
 ### Fixed
 - Fixed bug in bottom peak count

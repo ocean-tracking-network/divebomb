@@ -25,7 +25,7 @@ from divebomb.Dive import Dive
 __author__ = "Alex Nunes"
 __credits__ = ["Alex Nunes", "Fran Broell"]
 __license__ = "GPLv2"
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 __maintainer__ = "Alex Nunes"
 __email__ = "anunes@dal.ca"
 __status__ = "Development"
@@ -343,21 +343,24 @@ def get_dive_starting_points(data,
                'end_block'] = starts.end_block - 1
 
     if is_surfacing_animal:
+        starts['new_start'] = None
         for index, row in starts.iterrows():
             sub_data = data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']]
             starts.loc[index, 'max_depth'] = sub_data.depth.max()
-            starts.loc[index, 'new_start'] = sub_data[sub_data.depth >
-                                                      surface_threshold].head(1).index.min ()  - 2
-        surface_threshold = surface_threshold
+            if data.time.diff().mean() >= 10:
+                starts.loc[index, 'new_start'] = sub_data[sub_data.depth >
+                                                          surface_threshold].head(1).index.min() - 1
+
         starts = starts[(starts.max_depth > surface_threshold)]
-        starts.drop(
-            ['start_block', 'end_block', 'max_depth', 'time_diff'],
-            axis=1,
-            inplace=True)
+
+        starts.loc[~starts.new_start.isnull(), 'start_block'] = starts.new_start
+
+        starts = data[data.index.isin(starts.start_block)]
+
         starts['time_diff'] = starts.time.diff()
-        starts['start_block'] = starts.new_start.astype(int)
+        starts['start_block'] = starts.index
         starts['end_block'] = starts.start_block.shift(-1) + 1
-        starts.drop('new_start', inplace=True, axis=1)
+
         starts.end_block.fillna(data.index.max(), inplace=True)
         starts.end_block = starts.end_block.astype(int)
         starts.start_block = starts.start_block.clip(lower=0)
