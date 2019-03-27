@@ -17,8 +17,8 @@ setup(
     author='Alex Nunes',
     include_package_data=True,
     author_email='anunes@dal.ca',
-    url='https://gitlab.oceantrack.org/anunes/divebomb',
-    download_url = 'https://gitlab.oceantrack.org/anunes/divebomb',
+    url='https://github.com/alexetnunes/divebomb',
+    download_url = 'https://github.com/alexetnunes/divebomb',
     license=license,
     packages=find_packages(exclude=('tests', 'docs'))
 )
