@@ -11,14 +11,14 @@ with open('LICENSE') as f:
 
 setup(
     name='divebomb',
-    version='1.0.2',
+    version='1.1.0',
     description='divebomb dive classification algorithm',
     long_description=readme,
     author='Alex Nunes',
     include_package_data=True,
     author_email='anunes@dal.ca',
-    url='https://gitlab.oceantrack.org/anunes/divebomb',
-    download_url = 'https://gitlab.oceantrack.org/anunes/divebomb',
+    url='https://github.com/alexetnunes/divebomb',
+    download_url = 'https://github.com/alexetnunes/divebomb',
     license=license,
     packages=find_packages(exclude=('tests', 'docs'))
 )
