@@ -12,11 +12,7 @@ with open('LICENSE') as f:
 
 setup(
     name='divebomb',
-<<<<<<< HEAD
-    version='1.0.8',
-=======
     version='1.1.0',
->>>>>>> Added modified functions for profiling, clustering, and exporting
     description='divebomb dive classification algorithm',
     long_description=readme,
     long_description_content_type='text/markdown',
