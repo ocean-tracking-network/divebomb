@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from setuptools import setup, find_packages
 from codecs import open
+
+from setuptools import find_packages, setup
 
 with open('README') as f:
     readme = f.read()
@@ -11,14 +12,15 @@ with open('LICENSE') as f:
 
 setup(
     name='divebomb',
-    version='1.0.6',
+    version='1.0.7',
     description='divebomb dive classification algorithm',
     long_description=readme,
+    long_description_content_type='text/markdown',
     author='Alex Nunes',
     include_package_data=True,
-    author_email='anunes@dal.ca',
+    author_email='alex.et.nunes@gmail.com',
     url='https://github.com/alexetnunes/divebomb',
-    download_url = 'https://github.com/alexetnunes/divebomb',
-    license=license,
+    download_url='https://github.com/alexetnunes/divebomb',
+    license='GPLv2',
     packages=find_packages(exclude=('tests', 'docs'))
 )
