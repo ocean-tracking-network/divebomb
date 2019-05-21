@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2019-05-21
+### Fixed
+- Fixed issue with correcting dives offset function
+
 ## [1.0.5] - 2019-03-11
 ### Changed
 - Changed the descent start cutoff and padding to only apply to 10s sample rates or higher
