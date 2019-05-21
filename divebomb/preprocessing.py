@@ -72,7 +72,7 @@ def correct_depth_offset(data,
             (window_means.offset_mean.diff() / window_means.window_size).diff(
             ) / window_means.window_size).idxmin()].window_size.astype(int)
 
-        data['depth_offset'] = data[data.depth < animal_length].depth.rolling(
+        data['depth_offset'] = data[data.depth < surface_threshold].depth.rolling(
             window).median()
         data.depth_offset = data.depth_offset.interpolate().fillna(0)
         data['corrected_depth'] = data.depth - data.depth_offset
