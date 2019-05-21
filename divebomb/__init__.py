@@ -201,7 +201,22 @@ def export_dives(dives, data, folder, is_surface_events=False):
 
 
 def export_to_csv(folder, dives, loadings, pca_output_matrix, insufficient_dives=None):
-    # Export the dives to netCDF
+    """
+    Will output dive profiles, loadings, PCA Matrix, and inssufficent dive into
+    the indicated folder as CSVs.
+
+    :param folder: the path to export all files to, the folder will be
+        overwritten
+    :param dives: a Pandas DataFrame of the dive profiles and clusters, usually
+        generated from ``cluster_dives()``
+    :param loadings: a Pandas DataFrame of the Principle Component Analysis
+        loadings from ``cluster_dives()``
+    :param pca_output_matrix: a Pandas DataFrame of the Principle Component
+        Analysis results from ``cluster_dives()``
+    :param insufficent_dives: a Pandas DataFrame of dives that could not be
+        profiled from ``cluster_dives()``
+    """
+    # Export the dives to CSV
     if os.path.exists(folder):
         shutil.rmtree(folder)
     os.makedirs(folder)
@@ -214,19 +229,22 @@ def export_to_csv(folder, dives, loadings, pca_output_matrix, insufficient_dives
     print(f"Files have been exported to {os.getcwd()}/{folder}")
 
 
-def export_all_data(folder, data, dives, loadings, pca_output_matrix, insufficient_dives=None):
+def export_to_netcdf(folder, data, dives, loadings, pca_output_matrix, insufficient_dives=None):
     """
+    Will output dive profiles, loadings, PCA Matrix, and inssufficent dive into
+    the indicated folder as netCDF files. Additionally subfolders will be output
+    by cluster with separate files for each dive.
+
     :param folder: the path to export all files to, the folder will be
         overwritten
-    :param folder: a Pandas DataFrame of continuous time and depth data
     :param dives: a Pandas DataFrame of the dive profiles and clusters, usually
-        generated from ``profile_dives()``
+        generated from ``cluster_dives()``
     :param loadings: a Pandas DataFrame of the Principle Component Analysis
-        loadings
+        loadings from ``cluster_dives()``
     :param pca_output_matrix: a Pandas DataFrame of the Principle Component
-        Analysis results
+        Analysis results from ``cluster_dives()``
     :param insufficent_dives: a Pandas DataFrame of dives that could not be
-        profiled
+        profiled from ``cluster_dives()``
     """
     # Export the dives to netCDF
     if os.path.exists(folder):
@@ -361,9 +379,19 @@ def get_dive_starting_points(data,
     if is_surfacing_animal:
         starts['new_start'] = None
         for index, row in starts.iterrows():
-            sub_data = data[starts.loc[index, 'start_block']
-                :starts.loc[index, 'end_block']]
+            sub_data = data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']]
             starts.loc[index, 'max_depth'] = sub_data.depth.max()
+
+            if sub_data.depth.max() > surface_threshold:
+                start_index = sub_data[sub_data.depth
+                                       > surface_threshold].index[0] - sub_data.index.min()
+                pre_dive_data = sub_data[:start_index].sort_values(
+                    'time', ascending=False)
+                if len(pre_dive_data[pre_dive_data.depth <= 1]) > 1:
+                    starts.loc[index, 'start_block'] = pre_dive_data[pre_dive_data.depth <= 1].index[0]
+                else:
+                    starts.loc[index, 'start_block'] = pre_dive_data.index[0]
+
             if data.time.diff().mean() >= 10:
                 starts.loc[index, 'new_start'] = sub_data[sub_data.depth >
                                                           surface_threshold].head(1).index.min() - 1
@@ -377,7 +405,7 @@ def get_dive_starting_points(data,
 
         starts['time_diff'] = starts.time.diff()
         starts['start_block'] = starts.index
-        starts['end_block'] = starts.start_block.shift(-1) + 1
+        starts['end_block'] = starts.start_block.shift(-1)
 
         starts.end_block.fillna(data.index.max(), inplace=True)
         starts.end_block = starts.end_block.astype(int)
@@ -415,7 +443,7 @@ def profile_dives(data,
         surfacing animals, default is 0
     :param ipython_display_mode: whether or not to display the dives
 
-    :return: two dataframes for the dive profiles and the original data
+    :return: two dataframes for the dive profiles, inssufficient dives, and the original data
     """
     data = data.copy(deep=True)
     starts = get_dive_starting_points(
@@ -476,21 +504,19 @@ def profile_dives(data,
         return dives, insufficient_dives, data
 
 
-def divebomb(data,
-             folder=None,
-             columns={
-                 'depth': 'depth',
-                 'time': 'time'
-             },
-             is_surfacing_animal=True,
-             dive_detection_sensitivity=None,
-             minimal_time_between_dives=120,
-             surface_threshold=0,
-             at_depth_threshold=0.15):
+def profile_cluster_export(data,
+                           folder=None,
+                           columns={
+                               'depth': 'depth',
+                               'time': 'time'
+                           },
+                           is_surfacing_animal=True,
+                           dive_detection_sensitivity=None,
+                           minimal_time_between_dives=120,
+                           surface_threshold=0,
+                           at_depth_threshold=0.15):
     """
-    Calls the other functions to split and profile each dive. This function
-    uses the ``divebomb.Dive`` or ``divebomb.DeepDive`` class to profile the
-    dives.
+    Calls `profile_dives`, `cluster_dives`, and `export_to_netcdf`
 
     :param data: a dataframe needing a time and a depth column
     :param folder: a parent folder to write out to
@@ -514,6 +540,6 @@ def divebomb(data,
                                                     surface_threshold=surface_threshold,
                                                     columns=columns)
     dives, loadings, pca_output_matrix = cluster_dives(dives)
-    export_all_data(folder, data, dives, loadings,
-                    pca_output_matrix, insufficient_dives)
+    export_to_netcdf(folder, data, dives, loadings,
+                     pca_output_matrix, insufficient_dives)
     return data, dives, loadings, pca_output_matrix, insufficient_dives
