@@ -25,7 +25,7 @@ from divebomb.Dive import Dive
 __author__ = "Alex Nunes"
 __credits__ = ["Alex Nunes", "Fran Broell"]
 __license__ = "GPLv2"
-__version__ = "1.0.7"
+__version__ = "1.0.8"
 __maintainer__ = "Alex Nunes"
 __email__ = "anunes@dal.ca"
 __status__ = "Development"

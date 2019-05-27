@@ -88,7 +88,7 @@ def correct_depth_offset(data,
     corrected_data['depth'] = data.corrected_depth
 
     time_units = 'seconds since 1970-01-01'
-    data.time = date2num(data.time.tolist(), units=time_units)
+    data.time = date2num(pd.to_datetime(data.time).tolist(), units=time_units)
     xarray_data = xr.Dataset(data)
     xarray_data.variables['time'].attrs = {'units': time_units}
     xarray_data.variables['depth'].attrs = {
