@@ -389,7 +389,7 @@ def get_dive_starting_points(data,
                     'time', ascending=False)
                 if len(pre_dive_data[pre_dive_data.depth <= 1]) > 1:
                     starts.loc[index, 'start_block'] = pre_dive_data[pre_dive_data.depth <= 1].index[0]
-                else:
+                elif not pre_dive_data.empty:
                     starts.loc[index, 'start_block'] = pre_dive_data.index[0]
 
             if data.time.diff().mean() >= 10:
