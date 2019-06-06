@@ -194,7 +194,7 @@ class Dive:
             (self.data.time
              >= (self.bottom_start + self.td_bottom_duration))
             & (self.data.time
-             <= (self.data.time.max() - self.td_surface_duration))
+               <= (self.data.time.max() - self.td_surface_duration))
         ]
         self.ascent_velocity = (
             ascent_data.depth.max()
@@ -251,12 +251,16 @@ class Dive:
         bottom_data = self.data[(self.data.time >= self.bottom_start) & (
             self.data.time <= (self.bottom_start + self.td_bottom_duration))].reset_index()
 
-        threshold = max((bottom_data.depth.std(
-        ) / (bottom_data.depth.max() - bottom_data.depth.min())), 0.5)
+        bottom_difference = (bottom_data.depth.max() - bottom_data.depth.min())
 
+        if bottom_difference != 0:
+            threshold = max((bottom_data.depth.std(
+            ) / (bottom_data.depth.max() - bottom_data.depth.min())), 0.5)
+        else:
+            threshold = 0.5
         peaks = pk.indexes(
             bottom_data.depth * (-1),
-            thres=0.5,
+            thres=threshold,
             min_dist=max((10 / self.data.time.diff().mean()), 3))
 
         peak_data = bottom_data[(bottom_data.index.isin(peaks)) & (
@@ -301,7 +305,7 @@ class Dive:
             (self.data.time
              >= (self.bottom_start + self.td_bottom_duration))
             & (self.data.time
-             <= (self.data.time.max() - self.td_surface_duration))
+               <= (self.data.time.max() - self.td_surface_duration))
         ]
         ascent = go.Scatter(
             x=num2date(ascent_data.time.tolist(), units=units),

@@ -27,8 +27,8 @@ __credits__ = ["Alex Nunes", "Fran Broell"]
 __license__ = "GPLv2"
 __version__ = "1.1.0"
 __maintainer__ = "Alex Nunes"
-__email__ = "anunes@dal.ca"
-__status__ = "Development"
+__email__ = "alex.et.nunes@gmail.com"
+__status__ = "Production"
 
 pd.options.mode.chained_assignment = None
 
@@ -83,9 +83,7 @@ def display_dive(index,
         print(dive_profile.to_dict())
 
 
-def cluster_dives(dives, pca_components=8, n_clusters=None, attributes=['max_depth', 'td_total_duration', 'td_bottom_duration', 'td_descent_duration', 'descent_velocity',
-                                                                        'ascent_velocity', 'td_ascent_duration', 'td_dive_duration', 'td_surface_duration', 'bottom_variance',
-                                                                        'dive_variance', 'left_skew', 'right_skew', 'no_skew', 'peaks']):
+def cluster_dives(dives, pca_components=8, n_clusters=None, attributes=None):
     """
     This function takes advantage of sklearn and reduces the dimensionality
     with Principal Component Analysis, finds the optimal number of n_clusters
@@ -93,21 +91,39 @@ def cluster_dives(dives, pca_components=8, n_clusters=None, attributes=['max_dep
     uses Agglomerative Clustering on the dives profiles to group them.
 
     :param dives: a pandas DataFrame of dive attributes
-    :param pca_components:
-    :param n_clusters:
-    :param attributes:
+    :param pca_components: the number of components for dimensionality reduction.
+        Should be fewer than the number of columns in the dataset.
+    :param n_clusters: An override for the number of clusters to find when clustering
+    :param attributes: A list of variable/columns to use during the process. This can
+        be a subset of the columns in the data.
 
     :return: the clustered dives, the PCA loadings matrix,
              and the PCA output matrix
 
     """
     # Subset the data
-    dives = dives[attributes]
-    dataset = dives.fillna(0)
+
+    dataset = dives.fillna(0).copy(deep=True)
+
+    if 'dive_start' in dataset.columns:
+        dataset.drop('dive_start', axis=1, inplace=True)
+
+    if 'dive_end' in dataset.columns:
+        dataset.drop('dive_end', axis=1, inplace=True)
+
+    if 'insufficient_data' in dataset.columns:
+        dataset.drop('insufficient_data', axis=1, inplace=True)
 
     if 'surface_threshold' in dataset.columns:
         dataset.drop('surface_threshold', axis=1, inplace=True)
+    if attributes is not None:
+        for column in dataset.columns:
+            if column not in attributes:
+                dataset.drop(column, axis=1, inplace=True)
 
+    cluster_columns = dataset.columns.tolist()
+    print("Clustering on " + ', '.join(cluster_columns[:-1]) +
+          ' and ' + cluster_columns[-1])
     try:
         # Scale all values
         X = dataset.values
@@ -115,6 +131,10 @@ def cluster_dives(dives, pca_components=8, n_clusters=None, attributes=['max_dep
         X = sc_X.fit_transform(X)
 
         # Apply principle component analysis
+        if pca_components > len(dataset.columns):
+            print("You can't have more PCA components than attributes, reducing pca_components to " +
+                  str(len(dataset.columns)) + ".")
+            pca_components = len(dataset.columns)
         pca = PCA(n_components=pca_components)
         X = pca.fit_transform(X)
 
@@ -220,6 +240,7 @@ def export_to_csv(folder, dives, loadings, pca_output_matrix, insufficient_dives
     if os.path.exists(folder):
         shutil.rmtree(folder)
     os.makedirs(folder)
+    dives['dive_id'] = dives.index + 1
     dives.to_csv(folder + '/all_profiled_dives.csv', index=False)
     loadings.to_csv(folder + '/pca_loadings.csv', index=False)
     pca_output_matrix.to_csv(folder + '/pca_output_matrix.csv', index=False)
@@ -256,8 +277,10 @@ def export_to_netcdf(folder, data, dives, loadings, pca_output_matrix, insuffici
 
     # export the dives
     data.set_index('time', inplace=True, drop=False)
+
     dives.dive_start = dives.dive_start.astype(int)
     dives.dive_end = dives.dive_end.astype(int)
+
     data.time = data.time.astype(int)
     export_dives(dives, data, folder)
 
@@ -304,6 +327,7 @@ def export_to_netcdf(folder, data, dives, loadings, pca_output_matrix, insuffici
         xarray_data.to_netcdf(
             os.path.join(folder, "insufficent_data_dives.nc"), mode='w')
         xarray_data.close()
+    print(f"Files have been exported to {os.getcwd()}/{folder}")
 
 
 def clean_dive_data(data, columns={'depth': 'depth', 'time': 'time'}):
@@ -388,7 +412,8 @@ def get_dive_starting_points(data,
                 pre_dive_data = sub_data[:start_index].sort_values(
                     'time', ascending=False)
                 if len(pre_dive_data[pre_dive_data.depth <= 1]) > 1:
-                    starts.loc[index, 'start_block'] = pre_dive_data[pre_dive_data.depth <= 1].index[0]
+                    starts.loc[index,
+                               'start_block'] = pre_dive_data[pre_dive_data.depth <= 1].index[0]
                 elif not pre_dive_data.empty:
                     starts.loc[index, 'start_block'] = pre_dive_data.index[0]
 
@@ -529,7 +554,6 @@ def profile_cluster_export(data,
         to occur before there can be a new dive segement
     :param surface_threshold: the threshold at which is considered surface for
         surfacing animals, default is 0
-    :param ipython_display_mode: whether or not to display the dives
 
     :return: two dataframes for the dive profiles and the original data
     """

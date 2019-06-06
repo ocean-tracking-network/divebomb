@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 
-from setuptools import setup, find_packages
 from codecs import open
+
+from setuptools import find_packages, setup
 
 with open('README') as f:
     readme = f.read()
@@ -16,9 +17,9 @@ setup(
     long_description=readme,
     author='Alex Nunes',
     include_package_data=True,
-    author_email='anunes@dal.ca',
+    author_email='alex.et.nunes@gmail.com',
     url='https://github.com/alexetnunes/divebomb',
-    download_url = 'https://github.com/alexetnunes/divebomb',
+    download_url='https://github.com/alexetnunes/divebomb',
     license=license,
     packages=find_packages(exclude=('tests', 'docs'))
 )
