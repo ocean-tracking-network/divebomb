@@ -18,8 +18,8 @@ setup(
     author='Alex Nunes',
     include_package_data=True,
     author_email='alex.et.nunes@gmail.com',
-    url='https://github.com/alexetnunes/divebomb',
-    download_url='https://github.com/alexetnunes/divebomb',
+    url='https://github.com/ocean-tracking-network/divebomb',
+    download_url='https://github.com/ocean-tracking-network/divebomb',
     license=license,
     packages=find_packages(exclude=('tests', 'docs'))
 )
