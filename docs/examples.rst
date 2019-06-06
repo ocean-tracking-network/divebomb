@@ -163,6 +163,7 @@ insufficient dives, and the original data.
   data = pd.read_csv('/path/to/data.csv')
   surface_threshold=3
 
+  # Profile dives and save the 3 outputs
   dives, insufficient_dives, data = profile_dives(data, surface_threshold=surface_threshold)
 
 ``profile_dives()`` also takes and argument to display the dive in a Jupyter Notebook.
@@ -184,11 +185,117 @@ choose the dive.
 Cluster Dives
 *************
 
+The ``cluster_dives()`` functions will take a DataFrame of profiled
+dives and cluster on the arguments passed. You can adjust the number
+of clusters, the principle component analysis (PCA) components, and
+which attributes are used througharguments in the function. ``cluster_dives()``
+returns three datasets: the dives with cluster number, the loadings matrix
+for the PCA, and the PCA matrix. Below are some examples.
+
+.. code:: python
+
+  from divebomb import profile_dives, cluster_dives
+  import pandas as pd
+
+  data = pd.read_csv('/path/to/data.csv')
+  surface_threshold=3
+
+  dives, insufficient_dives, data = profile_dives(data, surface_threshold=surface_threshold)
+
+  # Get the profiled dives from the profile_dives function above and
+  # assign the 3 datasets to variables
+  clustered_dives, loadings, pca_output_matrix = cluster_dives(dives)
+
+Below is an example of overriding the number of clusters generated.
+
+.. code:: python
+
+  clustered_dives, loadings, pca_output_matrix  = cluster_dives(dives, n_cluster=4)
+
+Below is an example of overriding dimensionality reduction in the PCA (the default is 8).
+``pca_components`` must be less than or equal to the number of columns/attributes being used for the
+clustering (``dive_start``, ``dive_end``, ``surface_threshold``, and ``insufficient_data``
+will not count towards the number of columns/attributes).
+
+.. code:: python
+
+  clustered_dives, loadings, pca_output_matrix  = cluster_dives(dives, pca_components=4)
+
+Below is an example of selecting which attributes are used in the clustering. The code
+only clusters on ``td_ascent_duration``, ``td_bottom_duration``, ``td_descent_duration``,
+and ``td_dive_duration``. We choose ``pca_components=2`` to reduce the dimensionality from
+4 to 2.
+
+.. code:: python
+
+  clustered_dives, loadings, pca_output_matrix = cluster_dives(dives,
+                                                               pca_components=2,
+                                                               attributes=['td_ascent_duration',
+                                                                            'td_bottom_duration',
+                                                                            'td_descent_duration',
+                                                                            'td_dive_duration'])
+
 Export Dives
 ************
 
 Dives can either be exported to NetCDF or CSV. Both ``profile_dives()`` and ``cluster_dives()``
 need to be run and assigned to variables to get all dataset created in the process.
+
+
+``export_to_netcdf()`` will take all of the datasets and save them to
+a ``.nc`` file as well as saving a ``.nc`` for each individual dive in
+folders sorted by cluster.
+
+.. code:: python
+
+  from divebomb import profile_dives, cluster_dives, export_to_csv, export_to_netcdf
+  import pandas as pd
+
+  data = pd.read_csv('/path/to/data.csv')
+  surface_threshold=3
+
+  dives, insufficient_dives, data = profile_dives(data, surface_threshold=surface_threshold)
+
+  # Get the profiled dives from the profile_dives function above
+  clustered_dives, loadings, pca_output_matrix s = cluster_dives(dives)
+
+  # Export to netcdf
+  export_to_netcdf(folder = "nc_results",
+                    data = data,
+                    dives=clustered_dives,
+                    loadings=loadings,
+                    pca_output_matrix=pca_output_matrix,
+                    insufficient_dives=insufficient_dives)
+
+``export_to_csv`` will take the inputs and save the clustered dives,
+loadings, and PCA matrix to a folder as CSVs.
+
+.. code:: python
+
+  # Export to CSV (no individual dive files)
+  export_to_csv(folder = "csv_results",
+                dives=clustered_dives,
+                loadings=loadings,
+                pca_output_matrix=pca_output_matrix,
+                insufficient_dives=insufficient_dives)
+
+All outputs are DataFrames and can be saved individually by appending
+``.to_csv('filename.csv', index=False)`` to the variable. For example,
+the code below will save the profiled dives (no clustering) to a CSV.
+
+.. code:: python
+
+  from divebomb import profile_dives
+  import pandas as pd
+
+  data = pd.read_csv('/path/to/data.csv')
+  surface_threshold=3
+
+  # Profile dives and save the 3 outputs
+  dives, insufficient_dives, data = profile_dives(data, surface_threshold=surface_threshold)
+
+  dives.to_csv('profile_dives.csv', index=False)
+
 
 Plotting Results
 ----------------
