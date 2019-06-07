@@ -108,11 +108,11 @@ class Dive:
         std_dev = 0
         for i, r in self.data.iterrows():
             next_std_dev = np.std(self.data.loc[:i, 'depth'])
-            if ((i + 1) not in self.data.index or
-                (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >=
+            if ((i + 1) not in self.data.index
+                or (next_std_dev <= std_dev or self.data.loc[i, 'depth'] >=
                     self.data.loc[(i + 1), 'depth']
-                    ) and self.data.loc[i, 'depth'] > (self.max_depth *
-                                                       (1 - at_depth_threshold))):
+                    ) and self.data.loc[i, 'depth'] > (self.max_depth
+                                                       * (1 - at_depth_threshold))):
                 self.bottom_start = self.data.loc[i, 'time']
                 return (self.data.loc[i, 'time'] - self.data.loc[0, 'time'])
                 break
@@ -144,16 +144,16 @@ class Dive:
                 'time', ascending=False).iterrows():
             next_std_dev = np.std(self.data.loc[i:end_index, 'depth'])
             if ((next_std_dev < std_dev or
-                 self.data.loc[i, 'depth'] >=
-                 self.data.loc[(i - 1), 'depth']) and
-                    self.data.loc[i, 'depth'] >
-                    (self.max_depth * (1 - at_depth_threshold))) or     \
+                 self.data.loc[i, 'depth']
+                 >= self.data.loc[(i - 1), 'depth']) and
+                    self.data.loc[i, 'depth']
+                    > (self.max_depth * (1 - at_depth_threshold))) or     \
                     self.data.loc[i, 'depth'] > (self.max_depth * 0.90):
                 self.td_bottom_duration = self.data.loc[i, 'time'] -    \
                     self.bottom_start
                 if (end_index > 0):
-                    return (self.data.loc[end_index, 'time'] -
-                            self.data.loc[i, 'time'])
+                    return (self.data.loc[end_index, 'time']
+                            - self.data.loc[i, 'time'])
 
                 break
             else:
@@ -180,8 +180,8 @@ class Dive:
         descent_data = self.data[self.data.time <= self.bottom_start]
         if self.td_descent_duration > 0:
             self.descent_velocity = (
-                descent_data.depth.max() -
-                descent_data.depth.min()) / self.td_descent_duration
+                descent_data.depth.max()
+                - descent_data.depth.min()) / self.td_descent_duration
         return self.descent_velocity
 
     # Calculate the ascent velocity Delta Depth/Delta Time
@@ -191,14 +191,14 @@ class Dive:
         """
         self.ascent_velocity = 0
         ascent_data = self.data[
-            (self.data.time >=
-             (self.bottom_start + self.td_bottom_duration)) &
-            (self.data.time <=
-             (self.data.time.max() - self.td_surface_duration))
+            (self.data.time
+             >= (self.bottom_start + self.td_bottom_duration))
+            & (self.data.time
+               <= (self.data.time.max() - self.td_surface_duration))
         ]
         self.ascent_velocity = (
-            ascent_data.depth.max() -
-            ascent_data.depth.min()) / self.td_ascent_duration
+            ascent_data.depth.max()
+            - ascent_data.depth.min()) / self.td_ascent_duration
         return self.ascent_velocity
 
     # Calculate and set the bottom variance
@@ -210,8 +210,8 @@ class Dive:
             the dive in meters
         """
         dive_data = self.data[(self.data.time >= self.dive_start) & (
-            self.data.time <= (self.bottom_start + self.td_bottom_duration +
-                               self.td_ascent_duration))]
+            self.data.time <= (self.bottom_start + self.td_bottom_duration
+                               + self.td_ascent_duration))]
         self.dive_variance = np.std(dive_data.depth)
         bottom_data = self.data[(self.data.time >= self.bottom_start) & (
             self.data.time <= (self.bottom_start + self.td_bottom_duration))]
@@ -251,14 +251,20 @@ class Dive:
         bottom_data = self.data[(self.data.time >= self.bottom_start) & (
             self.data.time <= (self.bottom_start + self.td_bottom_duration))].reset_index()
 
-        threshold = max((bottom_data.depth.std()/(bottom_data.depth.max()- bottom_data.depth.min())),0.5)
+        bottom_difference = (bottom_data.depth.max() - bottom_data.depth.min())
 
+        if bottom_difference != 0:
+            threshold = max((bottom_data.depth.std(
+            ) / (bottom_data.depth.max() - bottom_data.depth.min())), 0.5)
+        else:
+            threshold = 0.5
         peaks = pk.indexes(
             bottom_data.depth * (-1),
-            thres=0.5,
+            thres=threshold,
             min_dist=max((10 / self.data.time.diff().mean()), 3))
 
-        peak_data = bottom_data[(bottom_data.index.isin(peaks)) & (bottom_data.depth > surface_threshold)]
+        peak_data = bottom_data[(bottom_data.index.isin(peaks)) & (
+            bottom_data.depth > surface_threshold)]
         self.peaks = len(peak_data)
         return self.peaks
 
@@ -296,10 +302,10 @@ class Dive:
 
         # Get and set the ascent data
         ascent_data = self.data[
-            (self.data.time >=
-             (self.bottom_start + self.td_bottom_duration)) &
-            (self.data.time <=
-             (self.data.time.max() - self.td_surface_duration))
+            (self.data.time
+             >= (self.bottom_start + self.td_bottom_duration))
+            & (self.data.time
+               <= (self.data.time.max() - self.td_surface_duration))
         ]
         ascent = go.Scatter(
             x=num2date(ascent_data.time.tolist(), units=units),

@@ -20,19 +20,19 @@ Pass a Pandas DataFrame to the function with a ``time`` and a ``depth``
 
 .. code:: python
 
-  from divebomb import profile_dives
+  from divebomb import profile_cluster_export
   import pandas as pd
 
   data = pd.read_csv('/path/to/data.csv')
   surface_threshold=3
 
-  profile_dives(data, folder='results', surface_threshold=surface_threshold , columns={'depth': 'depth', 'time': 'time'}, ipython_display_mode=False)
+  profile_cluster_export(data, folder='results', surface_threshold=surface_threshold , columns={'depth': 'depth', 'time': 'time'})
 
 
 DeepDives
 *********
 
-To run the ``profile_dives()`` function on an animal, such as a shark, just set
+To run the ``profile_cluster_export()`` function on an animal, such as a shark, just set
 ``is_surfacing_animal==False``. This variable makes the function call the
 ``DeepDive`` class instead. ``DeepDives`` are not dependent on the animal
 surfacing again.
@@ -40,18 +40,18 @@ surfacing again.
 .. code:: python
 
   import pandas as pd
-  from divebomb import profile_dives
+  from divebomb import profile_cluster_export
 
   df = pd.read_csv('/path/to/data.csv')
 
-  dives = profile_dives(df, folder='results', is_surfacing_animal=False)
+  dives = profile_cluster_export(df, folder='results', is_surfacing_animal=False)
 
 Changing Surface threshold
 **************************
 
 A surface threshold is used for surfacing animals to define a depth window for
 what is considered to be at surface. The ``surface_threshold`` argument
-defaults to ``0`` but can be changed in the ``profile_dives()`` function.
+defaults to ``0`` but can be changed in the ``profile_cluster_export()`` function.
 For example ``surface_threshold=2`` might be passed for animal that is ``~2``
 meters long. ``surface_threshold`` is always passed in meters.
 
@@ -61,13 +61,13 @@ Example:
 .. code:: python
 
   import pandas as pd
-  from divebomb import profile_dives
+  from divebomb import profile_cluster_export
 
   data = pd.read_csv('data.csv')
 
   surface_threshold = 3 # in meters
 
-  dives = profile_dives(data, folder='results', surface_threshold=surface_threshold)
+  dives = profile_cluster_export(data, folder='results', surface_threshold=surface_threshold)
 
 Changing At Depth Threshold
 ***************************
@@ -85,13 +85,13 @@ Example:
 .. code:: python
 
   import pandas as pd
-  from divebomb import profile_dives
+  from divebomb import profile_cluster_export
 
   data = pd.read_csv('data.csv')
 
   at_depth_threshold = 0.2 # A value betwen 0 and 1
 
-  dives = profile_dives(data, folder='results', minimal_time_between_dives=minimal_time_between_dives)
+  dives = profile_cluster_export(data, folder='results', minimal_time_between_dives=minimal_time_between_dives)
 
 Changing Dive Detection Sensitivity
 ***********************************
@@ -107,13 +107,13 @@ Example:
 .. code:: python
 
   import pandas as pd
-  from divebomb import profile_dives
+  from divebomb import profile_cluster_export
 
   data = pd.read_csv('data.csv')
 
   dive_detection_sensitivity = 0.95
 
-  dives = profile_dives(data, folder='results', dive_detection_sensitivity=dive_detection_sensitivity)
+  dives = profile_cluster_export(data, folder='results', dive_detection_sensitivity=dive_detection_sensitivity)
 
 Changing Minimal Time Between Dives
 ***********************************
@@ -128,28 +128,174 @@ Example:
 .. code:: python
 
   import pandas as pd
-  from divebomb import profile_dives
+  from divebomb import profile_cluster_export
 
   data = pd.read_csv('data.csv')
 
   minimal_time_between_dives = 600 # in seconds
 
-  dives = profile_dives(data, folder='results', minimal_time_between_dives=minimal_time_between_dives)
+  dives = profile_cluster_export(data, folder='results', minimal_time_between_dives=minimal_time_between_dives)
 
-Displaying or Writing the Dives
-*******************************
 
-The dive data can either be displayed to the user in Jupyter Notebooks or stored in files. Displaying will not
-cluster the dives, but show them in ascending order by time in an iPython Notebook.
+Separating Out Components
+-------------------------
+
+Each of the components from `profile_cluster_export()` can run separately but their input
+may rely on the out put from the previous. Below is how to run each of the components separately
+to modify the clustering or export to CSVs
+
+
+
+Profile Dives
+*************
+
+The ``profile_dives()`` function only profiles the dives. It finds the start points for the
+dives, then finds the dive attributes. ``profile_dives()`` takes the ``surface_threshold``,
+``dive_detection_sensitivity``, ``at_depth_thresold``, and ``is_surfacing_animal`` arguments
+just like ``profile_cluster_export()``. It returns three datasets of the profiled dives, any
+insufficient dives, and the original data.
 
 .. code:: python
 
-  # Display
-  surface_threshold = 3 # in meters
-  dives = profile_dives(df,  surface_threshold=surface_threshold , ipython_display_mode=True)
+  from divebomb import profile_dives
+  import pandas as pd
 
-  # Store in files
-  dives = profile_dives(df, folder='results', surface_threshold=surface_threshold )
+  data = pd.read_csv('/path/to/data.csv')
+  surface_threshold=3
+
+  # Profile dives and save the 3 outputs
+  dives, insufficient_dives, data = profile_dives(data, surface_threshold=surface_threshold)
+
+``profile_dives()`` also takes and argument to display the dive in a Jupyter Notebook.
+If ``ipython_display_mode=True`` then the dives will be displayed with with a slider to
+choose the dive.
+
+.. code:: python
+
+  from divebomb import profile_dives
+  import pandas as pd
+
+  data = pd.read_csv('/path/to/data.csv')
+  surface_threshold=3
+
+  profile_dives(data, surface_threshold=surface_threshold, ipython_display_mode=True)
+
+
+
+Cluster Dives
+*************
+
+The ``cluster_dives()`` functions will take a DataFrame of profiled
+dives and cluster on the arguments passed. You can adjust the number
+of clusters, the principle component analysis (PCA) components, and
+which attributes are used througharguments in the function. ``cluster_dives()``
+returns three datasets: the dives with cluster number, the loadings matrix
+for the PCA, and the PCA matrix. Below are some examples.
+
+.. code:: python
+
+  from divebomb import profile_dives, cluster_dives
+  import pandas as pd
+
+  data = pd.read_csv('/path/to/data.csv')
+  surface_threshold=3
+
+  dives, insufficient_dives, data = profile_dives(data, surface_threshold=surface_threshold)
+
+  # Get the profiled dives from the profile_dives function above and
+  # assign the 3 datasets to variables
+  clustered_dives, loadings, pca_output_matrix = cluster_dives(dives)
+
+Below is an example of overriding the number of clusters generated.
+
+.. code:: python
+
+  clustered_dives, loadings, pca_output_matrix  = cluster_dives(dives, n_cluster=4)
+
+Below is an example of overriding dimensionality reduction in the PCA (the default is 8).
+``pca_components`` must be less than or equal to the number of columns/attributes being used for the
+clustering (``dive_start``, ``dive_end``, ``surface_threshold``, and ``insufficient_data``
+will not count towards the number of columns/attributes).
+
+.. code:: python
+
+  clustered_dives, loadings, pca_output_matrix  = cluster_dives(dives, pca_components=4)
+
+Below is an example of selecting which attributes are used in the clustering. The code
+only clusters on ``td_ascent_duration``, ``td_bottom_duration``, ``td_descent_duration``,
+and ``td_dive_duration``. We choose ``pca_components=2`` to reduce the dimensionality from
+4 to 2.
+
+.. code:: python
+
+  clustered_dives, loadings, pca_output_matrix = cluster_dives(dives,
+                                                               pca_components=2,
+                                                               attributes=['td_ascent_duration',
+                                                                            'td_bottom_duration',
+                                                                            'td_descent_duration',
+                                                                            'td_dive_duration'])
+
+Export Dives
+************
+
+Dives can either be exported to NetCDF or CSV. Both ``profile_dives()`` and ``cluster_dives()``
+need to be run and assigned to variables to get all dataset created in the process.
+
+
+``export_to_netcdf()`` will take all of the datasets and save them to
+a ``.nc`` file as well as saving a ``.nc`` for each individual dive in
+folders sorted by cluster.
+
+.. code:: python
+
+  from divebomb import profile_dives, cluster_dives, export_to_csv, export_to_netcdf
+  import pandas as pd
+
+  data = pd.read_csv('/path/to/data.csv')
+  surface_threshold=3
+
+  dives, insufficient_dives, data = profile_dives(data, surface_threshold=surface_threshold)
+
+  # Get the profiled dives from the profile_dives function above
+  clustered_dives, loadings, pca_output_matrix s = cluster_dives(dives)
+
+  # Export to netcdf
+  export_to_netcdf(folder = "nc_results",
+                    data = data,
+                    dives=clustered_dives,
+                    loadings=loadings,
+                    pca_output_matrix=pca_output_matrix,
+                    insufficient_dives=insufficient_dives)
+
+``export_to_csv`` will take the inputs and save the clustered dives,
+loadings, and PCA matrix to a folder as CSVs.
+
+.. code:: python
+
+  # Export to CSV (no individual dive files)
+  export_to_csv(folder = "csv_results",
+                dives=clustered_dives,
+                loadings=loadings,
+                pca_output_matrix=pca_output_matrix,
+                insufficient_dives=insufficient_dives)
+
+All outputs are DataFrames and can be saved individually by appending
+``.to_csv('filename.csv', index=False)`` to the variable. For example,
+the code below will save the profiled dives (no clustering) to a CSV.
+
+.. code:: python
+
+  from divebomb import profile_dives
+  import pandas as pd
+
+  data = pd.read_csv('/path/to/data.csv')
+  surface_threshold=3
+
+  # Profile dives and save the 3 outputs
+  dives, insufficient_dives, data = profile_dives(data, surface_threshold=surface_threshold)
+
+  dives.to_csv('profile_dives.csv', index=False)
+
 
 Plotting Results
 ----------------
@@ -276,7 +422,7 @@ The first uses a local max:
 
 .. code:: python
 
-  from divebomb import profile_dives
+  from divebomb import profile_cluster_export
   import pandas as pd
   window = 3600 #seconds
 
@@ -287,7 +433,7 @@ The second wethod uses a rolling average of all surface and near surface values 
 
 .. code:: python
 
-  from divebomb import profile_dives
+  from divebomb import profile_cluster_export
   import pandas as pd
   window = 3600 # seconds
   surface_threshold = 4 # meters
