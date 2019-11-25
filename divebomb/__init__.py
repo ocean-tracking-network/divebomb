@@ -25,7 +25,7 @@ from divebomb.Dive import Dive
 __author__ = "Alex Nunes"
 __credits__ = ["Alex Nunes", "Fran Broell"]
 __license__ = "GPLv2"
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 __maintainer__ = "Alex Nunes"
 __email__ = "alex.et.nunes@gmail.com"
 __status__ = "Production"
@@ -395,12 +395,13 @@ def get_dive_starting_points(data,
     starts.end_block.fillna(data.index.max(), inplace=True)
     starts.end_block = starts.end_block.astype(int)
 
-    # This line specidifcally looks for larg time gaps in the data and ignores
+    # This line specifically looks for larg time gaps in the data and ignores
     # them using the index
     starts.loc[starts.time_diff.shift(-1) > starts.time_diff.mode()[0],
                'end_block'] = starts.end_block - 1
 
     if is_surfacing_animal:
+        starts = starts[starts.depth <= surface_threshold]
         starts['new_start'] = None
         for index, row in starts.iterrows():
             sub_data = data[starts.loc[index, 'start_block']:starts.loc[index, 'end_block']]

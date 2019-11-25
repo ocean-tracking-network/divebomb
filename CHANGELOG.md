@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2019-11-25
+### Fixed
+- A fix for `at_depth_threshold` getting stopped at 0.1
+- A minor fix to better separate dives
+
 ## [1.1.0] - 2019-06-07
 ### Added
 - ``profile_cluster_export`` replaced ``profile_dives`` and is the new function to all three

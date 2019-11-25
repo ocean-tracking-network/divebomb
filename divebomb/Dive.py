@@ -148,7 +148,7 @@ class Dive:
                  >= self.data.loc[(i - 1), 'depth']) and
                     self.data.loc[i, 'depth']
                     > (self.max_depth * (1 - at_depth_threshold))) or     \
-                    self.data.loc[i, 'depth'] > (self.max_depth * 0.90):
+                    self.data.loc[i, 'depth'] >= (self.max_depth * 0.99):
                 self.td_bottom_duration = self.data.loc[i, 'time'] -    \
                     self.bottom_start
                 if (end_index > 0):
