@@ -37,8 +37,10 @@ setup(
         'plotly',
         'netcdf4',
         'peakutils',
-        'scikit-learn',
-        'xarray'
+        'sklearn',
+        'xarray',
+        'sphinx',
+        'colorlover'
     ],
     packages=find_packages(exclude=('tests', 'docs'))
 )
