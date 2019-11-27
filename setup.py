@@ -4,7 +4,7 @@ from codecs import open
 
 from setuptools import find_packages, setup
 
-with open('README.md') as f:
+with open('README') as f:
     readme = f.read()
 
 with open('LICENSE') as f:
@@ -12,7 +12,7 @@ with open('LICENSE') as f:
 
 setup(
     name='divebomb',
-    version='1.1.1',
+    version='1.1.2',
     description='divebomb dive classification algorithm',
     long_description=readme,
     long_description_content_type='text/markdown',
@@ -31,6 +31,14 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
     ],
-
+    install_requires=[
+        'pandas',
+        'numpy',
+        'plotly',
+        'netcdf4',
+        'peakutils',
+        'scikit-learn',
+        'xarray'
+    ],
     packages=find_packages(exclude=('tests', 'docs'))
 )
