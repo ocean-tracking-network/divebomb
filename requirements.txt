@@ -3,7 +3,7 @@ plotly
 sphinx
 numpy
 peakutils
-sklearn
+scikit-learn
 datetime
 netCDF4
 ipywidgets
